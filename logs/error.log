@@ -1,0 +1,45 @@
+2025-07-03 12:15:47 [ERROR]: MQTT client 'sensor-mqtt' error: connect ETIMEDOUT 192.168.1.200:1883 {"errno":-4039,"code":"ETIMEDOUT","syscall":"connect","address":"192.168.1.200","port":1883}
+Error: connect ETIMEDOUT 192.168.1.200:1883
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1634:16)
+2025-07-03 12:15:47 [ERROR]: Connector 'sensor-mqtt' error: connect ETIMEDOUT 192.168.1.200:1883 {"errno":-4039,"code":"ETIMEDOUT","syscall":"connect","address":"192.168.1.200","port":1883}
+Error: connect ETIMEDOUT 192.168.1.200:1883
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1634:16)
+2025-07-03 12:15:47 [ERROR]: Connector 'sensor-mqtt' error: connect ETIMEDOUT 192.168.1.200:1883 {"errno":-4039,"code":"ETIMEDOUT","syscall":"connect","address":"192.168.1.200","port":1883}
+Error: connect ETIMEDOUT 192.168.1.200:1883
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1634:16)
+2025-07-03 12:15:47 [ERROR]: Failed to connect MQTT connector 'sensor-mqtt': connect ETIMEDOUT 192.168.1.200:1883 {"errno":-4039,"code":"ETIMEDOUT","syscall":"connect","address":"192.168.1.200","port":1883}
+Error: connect ETIMEDOUT 192.168.1.200:1883
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1634:16)
+2025-07-03 12:15:47 [ERROR]: Failed to start connector 'sensor-mqtt': connect ETIMEDOUT 192.168.1.200:1883 {"errno":-4039,"code":"ETIMEDOUT","syscall":"connect","address":"192.168.1.200","port":1883}
+Error: connect ETIMEDOUT 192.168.1.200:1883
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1634:16)
+2025-07-03 12:16:27 [ERROR]: MQTT client 'sensor-mqtt' error: connect ETIMEDOUT 192.168.1.200:1883 {"errno":-4039,"code":"ETIMEDOUT","syscall":"connect","address":"192.168.1.200","port":1883}
+Error: connect ETIMEDOUT 192.168.1.200:1883
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1634:16)
+2025-07-03 12:16:27 [ERROR]: Connector 'sensor-mqtt' error: connect ETIMEDOUT 192.168.1.200:1883 {"errno":-4039,"code":"ETIMEDOUT","syscall":"connect","address":"192.168.1.200","port":1883}
+Error: connect ETIMEDOUT 192.168.1.200:1883
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1634:16)
+2025-07-03 12:16:27 [ERROR]: Connector 'sensor-mqtt' error: connect ETIMEDOUT 192.168.1.200:1883 {"errno":-4039,"code":"ETIMEDOUT","syscall":"connect","address":"192.168.1.200","port":1883}
+Error: connect ETIMEDOUT 192.168.1.200:1883
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1634:16)
+2025-07-03 12:16:27 [ERROR]: Failed to connect MQTT connector 'sensor-mqtt': connect ETIMEDOUT 192.168.1.200:1883 {"errno":-4039,"code":"ETIMEDOUT","syscall":"connect","address":"192.168.1.200","port":1883}
+Error: connect ETIMEDOUT 192.168.1.200:1883
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1634:16)
+2025-07-03 12:16:27 [ERROR]: Failed to start connector 'sensor-mqtt': connect ETIMEDOUT 192.168.1.200:1883 {"errno":-4039,"code":"ETIMEDOUT","syscall":"connect","address":"192.168.1.200","port":1883}
+Error: connect ETIMEDOUT 192.168.1.200:1883
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1634:16)
+2025-07-03 12:17:07 [ERROR]: MQTT client 'sensor-mqtt' error: connect ETIMEDOUT 192.168.1.200:1883 {"errno":-4039,"code":"ETIMEDOUT","syscall":"connect","address":"192.168.1.200","port":1883}
+Error: connect ETIMEDOUT 192.168.1.200:1883
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1634:16)
+2025-07-03 12:17:07 [ERROR]: Connector 'sensor-mqtt' error: connect ETIMEDOUT 192.168.1.200:1883 {"errno":-4039,"code":"ETIMEDOUT","syscall":"connect","address":"192.168.1.200","port":1883}
+Error: connect ETIMEDOUT 192.168.1.200:1883
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1634:16)
+2025-07-03 12:17:07 [ERROR]: Connector 'sensor-mqtt' error: connect ETIMEDOUT 192.168.1.200:1883 {"errno":-4039,"code":"ETIMEDOUT","syscall":"connect","address":"192.168.1.200","port":1883}
+Error: connect ETIMEDOUT 192.168.1.200:1883
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1634:16)
+2025-07-03 12:17:07 [ERROR]: Failed to connect MQTT connector 'sensor-mqtt': connect ETIMEDOUT 192.168.1.200:1883 {"errno":-4039,"code":"ETIMEDOUT","syscall":"connect","address":"192.168.1.200","port":1883}
+Error: connect ETIMEDOUT 192.168.1.200:1883
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1634:16)
+2025-07-03 12:17:07 [ERROR]: Failed to start connector 'sensor-mqtt': connect ETIMEDOUT 192.168.1.200:1883 {"errno":-4039,"code":"ETIMEDOUT","syscall":"connect","address":"192.168.1.200","port":1883}
+Error: connect ETIMEDOUT 192.168.1.200:1883
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1634:16)

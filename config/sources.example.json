@@ -1,0 +1,216 @@
+{
+  "sources": [
+    {
+      "id": "plc-production-line-1",
+      "type": "opcua",
+      "enabled": true,
+      "name": "PLC Production Line 1",
+      "description": "Siemens PLC monitoring temperature, pressure and flow on production line 1",
+      "config": {
+        "endpoint": "opc.tcp://192.168.1.100:4840",
+        "securityPolicy": "None",
+        "securityMode": "None",
+        "username": null,
+        "password": null,
+        "nodes": [
+          "ns=2;s=ProductionLine1.Temperature",
+          "ns=2;s=ProductionLine1.Pressure",
+          "ns=2;s=ProductionLine1.FlowRate",
+          "ns=2;s=ProductionLine1.Status",
+          "ns=2;s=ProductionLine1.Alarms.Count"
+        ],
+        "subscriptionOptions": {
+          "requestedPublishingInterval": 1000,
+          "requestedLifetimeCount": 60,
+          "requestedMaxKeepAliveCount": 10,
+          "maxNotificationsPerPublish": 10,
+          "publishingEnabled": true,
+          "priority": 10
+        },
+        "clientOptions": {
+          "requestedSessionTimeout": 60000,
+          "keepSessionAlive": true
+        }
+      },
+      "retryConfig": {
+        "enabled": true,
+        "maxRetries": 5,
+        "retryDelay": 5000
+      },
+      "dataProcessing": {
+        "enabled": true,
+        "transforms": ["normalizeTimestamp", "convertToNumber", "addQualityIndicators"],
+        "validation": {
+          "range": {
+            "field": "temperature",
+            "min": -50,
+            "max": 200
+          },
+          "requiredFields": {
+            "fields": ["temperature", "pressure"]
+          }
+        }
+      }
+    },
+    {
+      "id": "iot-sensors-mqtt",
+      "type": "mqtt",
+      "enabled": true,
+      "name": "IoT Sensors Network",
+      "description": "MQTT broker collecting data from distributed IoT sensors",
+      "config": {
+        "broker": "mqtt://192.168.1.200:1883",
+        "clientId": "universal-data-connector-iot",
+        "username": "connector_user",
+        "password": "secure_password",
+        "topics": [
+          "factory/sensors/+/temperature",
+          "factory/sensors/+/humidity",
+          "factory/sensors/+/vibration",
+          "factory/machines/+/status",
+          "factory/environment/+/air_quality"
+        ],
+        "qos": 1,
+        "options": {
+          "keepalive": 60,
+          "connectTimeout": 30000,
+          "reconnectPeriod": 1000,
+          "clean": true
+        }
+      },
+      "retryConfig": {
+        "enabled": true,
+        "maxRetries": 3,
+        "retryDelay": 3000
+      },
+      "dataProcessing": {
+        "enabled": true,
+        "transforms": ["normalizeTimestamp", "convertToNumber"],
+        "validation": {
+          "dataType": {
+            "field": "value",
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "id": "erp-api-data",
+      "type": "http",
+      "enabled": true,
+      "name": "ERP System API",
+      "description": "HTTP polling of ERP system for production data",
+      "config": {
+        "url": "https://erp.company.com/api/v1/production/current",
+        "method": "GET",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "User-Agent": "Universal-Data-Connector/1.0"
+        },
+        "authentication": {
+          "type": "bearer",
+          "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        },
+        "polling": {
+          "enabled": true,
+          "interval": 30000
+        },
+        "timeout": 15000,
+        "requestOptions": {
+          "validateStatus": false
+        }
+      },
+      "retryConfig": {
+        "enabled": true,
+        "maxRetries": 3,
+        "retryDelay": 10000
+      },
+      "dataProcessing": {
+        "enabled": true,
+        "transforms": ["normalizeTimestamp", "flattenObject"],
+        "validation": {
+          "requiredFields": {
+            "fields": ["productionData"]
+          }
+        }
+      }
+    },
+    {
+      "id": "weather-api",
+      "type": "http",
+      "enabled": false,
+      "name": "Weather API",
+      "description": "External weather API for environmental correlation",
+      "config": {
+        "url": "https://api.openweathermap.org/data/2.5/weather",
+        "method": "GET",
+        "params": {
+          "q": "Milan,IT",
+          "appid": "your_api_key_here",
+          "units": "metric"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "authentication": {
+          "type": "none"
+        },
+        "polling": {
+          "enabled": true,
+          "interval": 300000
+        },
+        "timeout": 10000
+      },
+      "retryConfig": {
+        "enabled": true,
+        "maxRetries": 2,
+        "retryDelay": 5000
+      },
+      "dataProcessing": {
+        "enabled": true,
+        "transforms": ["normalizeTimestamp", "celsiusToFahrenheit"]
+      }
+    },
+    {
+      "id": "modbus-gateway",
+      "type": "http",
+      "enabled": false,
+      "name": "Modbus TCP Gateway",
+      "description": "HTTP interface to Modbus TCP gateway for legacy devices",
+      "config": {
+        "url": "http://192.168.1.150:8080/modbus/read",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "data": {
+          "device_id": 1,
+          "registers": [
+            {"address": 0, "count": 10, "type": "holding"},
+            {"address": 100, "count": 5, "type": "input"}
+          ]
+        },
+        "authentication": {
+          "type": "basic",
+          "username": "admin",
+          "password": "modbus123"
+        },
+        "polling": {
+          "enabled": true,
+          "interval": 5000
+        },
+        "timeout": 8000
+      },
+      "retryConfig": {
+        "enabled": true,
+        "maxRetries": 4,
+        "retryDelay": 2000
+      },
+      "dataProcessing": {
+        "enabled": true,
+        "transforms": ["normalizeTimestamp", "convertToNumber"]
+      }
+    }
+  ]
+}
