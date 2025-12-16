@@ -1,11 +1,14 @@
 const logger = require('../utils/logger');
 
-// Import storage adapters
-const MemoryStorageAdapter = require('./adapters/MemoryStorageAdapter');
-const PostgreSQLAdapter = require('./adapters/PostgreSQLAdapter');
-const MariaDBAdapter = require('./adapters/MariaDBAdapter');
-const MongoDBAdapter = require('./adapters/MongoDBAdapter');
-const RedisAdapter = require('./adapters/RedisAdapter');
+// Import all storage adapters
+const {
+  MemoryStorageAdapter,
+  PostgreSQLAdapter,
+  MariaDBAdapter,
+  MongoDBAdapter,
+  RedisAdapter,
+  TimescaleDBAdapter
+} = require('./adapters');
 
 class StorageFactory {
   static storageTypes = {
@@ -15,7 +18,9 @@ class StorageFactory {
     'mariadb': MariaDBAdapter,
     'mongodb': MongoDBAdapter,
     'mongo': MongoDBAdapter, // Alias
-    'redis': RedisAdapter
+    'redis': RedisAdapter,
+    'timescaledb': TimescaleDBAdapter,
+    'timescale': TimescaleDBAdapter // Alias
   };
 
   static create(type, config) {

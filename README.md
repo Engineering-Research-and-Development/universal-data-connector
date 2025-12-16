@@ -1,14 +1,21 @@
-# Universal Data Connector
+<div align="center">
+  <img src="docs/logo.png" alt="Universal Data Connector Logo" width="300"/>
+  
+  # Universal Data Connector
 
-Un connettore dati universale configurabile per Industry 5.0 che supporta l'ingestion di dati da multiple sources.
+  Un connettore dati universale configurabile per Industry 5.0 che supporta l'ingestion di dati da multiple sources.
+</div>
 
 ## Caratteristiche
 
-- 🔌 **Multi-Source Support**: OPC UA, MQTT, HTTP REST
+- 🔌 **Multi-Source Support**: OPC UA, MQTT, HTTP REST, AAS + 10+ protocolli industriali
+- 🔄 **Data Mapping**: Trasformazione unificata verso Universal Data Model
+- 📤 **Multi-Format Export**: JSON, NGSI-LD, TOON
 - ⚙️ **Configurazione Flessibile**: Configurazione tramite file JSON
 - 🚀 **API REST**: Monitoraggio stato e controllo
 - 📊 **Real-time Processing**: Elaborazione dati in tempo reale
-- 🔄 **Modular Architecture**: Architettura modulare ed estensibile
+- 🏭 **Industry 4.0/5.0 Ready**: Supporto AAS e protocolli industriali
+- 🔀 **Modular Architecture**: Architettura modulare ed estensibile
 - 📝 **Logging Avanzato**: Sistema di logging strutturato
 
 ## Sources Supportate
@@ -33,7 +40,27 @@ Un connettore dati universale configurabile per Industry 5.0 che supporta l'inge
 ### Comunicazione Seriale
 - **Serial/RS232/RS485** - Protocolli custom su porta seriale con parser configurabili
 
+### Industry 4.0/5.0
+- **AAS (Asset Administration Shell)** - Standard Industry 4.0 per Digital Twin e interoperabilità
+
 📖 **[Documentazione Completa Connettori Industriali](docs/IndustrialConnectors.md)**
+
+## Mapping Tools
+
+Il **Mapping Tools** modulo trasforma automaticamente i dati da tutti i protocolli in un **Universal Data Model** unificato, esportabile in:
+- **JSON** - Formato standard universale
+- **NGSI-LD** - Standard FIWARE per IoT e Smart Cities
+- **TOON** - Formato ontologico (in definizione)
+
+### Caratteristiche Mapping
+- ✅ Mappatura automatica di tutti i protocolli
+- ✅ Modello dati unificato con entità e relazioni
+- ✅ Mappers specifici per protocollo (OPC-UA, Modbus, AAS, MQTT, Generic)
+- ✅ Export multi-formato
+- ✅ API REST per accesso dati mappati
+- ✅ Configurazione regole di mapping
+
+📖 **[Documentazione Completa Mapping Tools](docs/Mapping.md)**
 
 ## Quick Start
 
@@ -81,12 +108,24 @@ Esempio di configurazione:
 
 ## API Endpoints
 
+### Status & Sources
 - `GET /api/status` - Stato generale del connettore
 - `GET /api/sources` - Lista sources configurate
 - `GET /api/sources/:id/status` - Stato di una source specifica
 - `POST /api/sources/:id/start` - Avvia una source
 - `POST /api/sources/:id/stop` - Ferma una source
 - `GET /api/data/latest` - Ultimi dati ricevuti
+
+### Mapping & Export
+- `GET /api/mapping/entities` - Tutte le entità mappate
+- `GET /api/mapping/entities/:id` - Entità specifica
+- `GET /api/mapping/entities/type/:type` - Entità per tipo
+- `GET /api/mapping/export/json` - Export in JSON
+- `GET /api/mapping/export/ngsi-ld` - Export in NGSI-LD
+- `GET /api/mapping/export/toon` - Export in TOON
+- `GET /api/mapping/statistics` - Statistiche mapping
+- `GET /api/mapping/health` - Health check mapping engine
+- `DELETE /api/mapping/entities` - Cancella dati mappati
 
 ## Dynamic Configuration
 
@@ -154,6 +193,7 @@ Il Universal Data Connector supporta diversi backend di storage per persistere i
 
 - **Memory** - Storage temporaneo in memoria (predefinito)
 - **PostgreSQL** - Database relazionale per alta performance
+- **TimescaleDB** - Database time-series ottimizzato (PostgreSQL extension)
 - **MariaDB/MySQL** - Database relazionale compatibile MySQL
 - **MongoDB** - Database NoSQL per dati semi-strutturati
 - **Redis** - Cache in memoria ad alte prestazioni
@@ -198,9 +238,51 @@ Per dettagli completi sulla configurazione storage, vedi [Storage Configuration 
 src/
 ├── server.js              # Entry point principale
 ├── core/                  # Core engine
+│   ├── DataConnectorEngine.js    # Orchestratore principale
+│   ├── DataProcessor.js           # Elaborazione dati
+│   └── DataStore.js               # Cache in-memory
 ├── connectors/            # Moduli connettori sources
+│   ├── BaseConnector.js           # Classe base connettori
+│   ├── ConnectorFactory.js        # Factory pattern
+│   └── protocols/                 # Implementazioni protocolli
+│       ├── OpcUaConnector.js      # OPC-UA
+│       ├── MqttConnector.js       # MQTT
+│       ├── HttpConnector.js       # HTTP REST
+│       ├── ModbusConnector.js     # Modbus TCP/RTU
+│       ├── S7Connector.js         # Siemens S7
+│       ├── AASConnector.js        # Asset Administration Shell
+│       ├── ... (altri 7 connettori)
+│       └── index.js               # Export unificato
+├── mappingTools/          # Sistema mapping unificato
+│   ├── UniversalDataModel.js      # Modello dati unificato
+│   ├── MappingEngine.js           # Engine orchestrazione
+│   ├── BaseMapper.js              # Classe base mapper
+│   └── mappers/                   # Mapper protocolli
+│       ├── OPCUAMapper.js
+│       ├── ModbusMapper.js
+│       ├── AASMapper.js
+│       ├── MQTTMapper.js
+│       └── GenericMapper.js
+├── storage/               # Persistenza dati
+│   ├── StorageFactory.js
+│   └── adapters/
+│       ├── PostgreSQLAdapter.js
+│       ├── TimescaleDBAdapter.js
+│       ├── MongoDBAdapter.js
+│       ├── MariaDBAdapter.js
+│       ├── RedisAdapter.js
+│       ├── MemoryStorageAdapter.js
+│       └── index.js
 ├── config/                # Sistema configurazione
+│   ├── ConfigManager.js
+│   └── StorageConfigManager.js
 ├── api/                   # REST API routes
-├── utils/                 # Utilities
-└── types/                 # Type definitions
+│   └── routes/
+│       ├── status.js
+│       ├── sources.js
+│       ├── data.js
+│       ├── config.js
+│       └── mapping.js     # Nuove API mapping
+└── utils/                 # Utilities
+    └── logger.js
 ```

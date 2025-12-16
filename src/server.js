@@ -8,6 +8,7 @@ require('dotenv').config();
 const logger = require('./utils/logger');
 const DataConnectorEngine = require('./core/DataConnectorEngine');
 const apiRoutes = require('./api');
+const mappingRoutes = require('./api/routes/mapping');
 const configManager = require('./config/ConfigManager');
 
 class UniversalDataConnector {
@@ -35,6 +36,9 @@ class UniversalDataConnector {
       // Initialize data connector engine
       this.engine = new DataConnectorEngine(this.storageConfig);
       await this.engine.initialize();
+      
+      // Initialize mapping routes with engine instance
+      mappingRoutes.initialize(this.engine);
       
       // Setup WebSocket server for real-time data
       this.setupWebSocket();

@@ -1,18 +1,21 @@
 const logger = require('../utils/logger');
 
-// Import connector implementations
-const OpcUaConnector = require('./OpcUaConnector');
-const MqttConnector = require('./MqttConnector');
-const HttpConnector = require('./HttpConnector');
-const ModbusConnector = require('./ModbusConnector');
-const EtherCATConnector = require('./EtherCATConnector');
-const S7Connector = require('./S7Connector');
-const BACnetConnector = require('./BACnetConnector');
-const ProfinetConnector = require('./ProfinetConnector');
-const FinsTcpConnector = require('./FinsTcpConnector');
-const MelsecConnector = require('./MelsecConnector');
-const CIPConnector = require('./CIPConnector');
-const SerialConnector = require('./SerialConnector');
+// Import all connector implementations
+const {
+  OpcUaConnector,
+  MqttConnector,
+  HttpConnector,
+  ModbusConnector,
+  EtherCATConnector,
+  S7Connector,
+  BACnetConnector,
+  ProfinetConnector,
+  FinsTcpConnector,
+  MelsecConnector,
+  CIPConnector,
+  SerialConnector,
+  AASConnector
+} = require('./protocols');
 
 class ConnectorFactory {
   static connectorTypes = {
@@ -34,7 +37,9 @@ class ConnectorFactory {
     'rockwell': CIPConnector,
     'serial': SerialConnector,
     'rs232': SerialConnector,
-    'rs485': SerialConnector
+    'rs485': SerialConnector,
+    'aas': AASConnector,
+    'asset-administration-shell': AASConnector
   };
 
   static create(type, config) {

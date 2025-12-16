@@ -4,13 +4,17 @@ const configManager = require('../config/ConfigManager');
 const ConnectorFactory = require('../connectors/ConnectorFactory');
 const DataProcessor = require('./DataProcessor');
 const DataStore = require('./DataStore');
+const { MappingEngine } = require('../mappingTools');
 
 class DataConnectorEngine extends EventEmitter {
-  constructor(storageConfig = null) {
+  constructor(storageConfig = null, mappingConfig = null) {
     super();
     this.connectors = new Map();
     this.dataProcessor = new DataProcessor();
     this.dataStore = new DataStore(storageConfig);
+    this.mappingEngine = new MappingEngine(mappingConfig || {
+      namespace: 'urn:ngsi-ld:industry50'
+    });
     this.isRunning = false;
     this.stats = {
       totalDataPoints: 0,
@@ -334,6 +338,21 @@ class DataConnectorEngine extends EventEmitter {
         }
       };
 
+      // Map data to Universal Data Model
+      try {
+        const mappingContext = {
+          sourceType: connectorInfo.config.type,
+          entityId: `${sourceId}_entity`,
+          entityType: connectorInfo.config.entityType
+        };
+        
+        this.mappingEngine.mapData(data, mappingContext);
+        logger.debug(`Data from '${sourceId}' mapped to Universal Data Model`);
+      } catch (mappingError) {
+        logger.warn(`Failed to map data from '${sourceId}' to Universal Data Model:`, mappingError.message);
+        // Continue processing even if mapping fails
+      }
+
       // Send to data processor
       this.dataProcessor.process(enrichedData);
 
@@ -551,6 +570,44 @@ class DataConnectorEngine extends EventEmitter {
     await this.stopConnector(sourceId);
     await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
     await this.startConnector(sourceId);
+  }
+
+  // Mapping Engine Methods
+  getMappingEngine() {
+    return this.mappingEngine;
+  }
+
+  exportMappedDataToJSON(options = {}) {
+    return this.mappingEngine.exportToJSON(options);
+  }
+
+  exportMappedDataToNGSILD(options = {}) {
+    return this.mappingEngine.exportToNGSILD(options);
+  }
+
+  exportMappedDataToTOON(options = {}) {
+    return this.mappingEngine.exportToTOON(options);
+  }
+
+  getMappedEntity(entityId) {
+    return this.mappingEngine.getEntity(entityId);
+  }
+
+  getMappedEntitiesByType(type) {
+    return this.mappingEngine.getEntitiesByType(type);
+  }
+
+  getAllMappedEntities() {
+    return this.mappingEngine.getAllEntities();
+  }
+
+  getMappingStatistics() {
+    return this.mappingEngine.getStatistics();
+  }
+
+  clearMappedData() {
+    this.mappingEngine.clearAll();
+    logger.info('Mapped data cleared');
   }
 
   async reloadConfiguration() {

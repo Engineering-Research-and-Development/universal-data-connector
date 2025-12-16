@@ -1,0 +1,185 @@
+{
+  "mapping": {
+    "enabled": true,
+    "autoMap": true,
+    "exportFormats": ["json", "ngsi-ld", "toon"],
+    "defaultMapper": "generic",
+    "mapperRules": {
+      "opcua": {
+        "enabled": true,
+        "entityPrefix": "OPC:",
+        "typeMapping": {
+          "Object": "Device",
+          "Variable": "Sensor",
+          "Method": "Actuator"
+        },
+        "propertyMapping": {
+          "Value": "value",
+          "Quality": "quality",
+          "Timestamp": "timestamp",
+          "DisplayName": "name",
+          "Description": "description"
+        },
+        "qualityMapping": {
+          "Good": "GOOD",
+          "Bad": "BAD",
+          "Uncertain": "UNCERTAIN"
+        }
+      },
+      "modbus": {
+        "enabled": true,
+        "entityPrefix": "MB:",
+        "typeMapping": {
+          "HoldingRegister": "Sensor",
+          "InputRegister": "Sensor",
+          "Coil": "Actuator",
+          "DiscreteInput": "Sensor"
+        },
+        "registerGroups": [
+          {
+            "name": "Temperature",
+            "startAddress": 0,
+            "count": 10,
+            "type": "InputRegister",
+            "unit": "°C",
+            "scale": 0.1
+          },
+          {
+            "name": "Pressure",
+            "startAddress": 10,
+            "count": 5,
+            "type": "InputRegister",
+            "unit": "bar",
+            "scale": 0.01
+          }
+        ]
+      },
+      "aas": {
+        "enabled": true,
+        "entityPrefix": "AAS:",
+        "typeMapping": {
+          "AssetAdministrationShell": "Asset",
+          "Submodel": "Component",
+          "Property": "Attribute",
+          "Operation": "Capability",
+          "File": "Document"
+        },
+        "submodelMapping": {
+          "Nameplate": "DeviceInfo",
+          "TechnicalData": "Specifications",
+          "OperationalData": "RuntimeData",
+          "Documentation": "Documents"
+        }
+      },
+      "mqtt": {
+        "enabled": true,
+        "entityPrefix": "MQTT:",
+        "typeMapping": {
+          "sensor": "Sensor",
+          "actuator": "Actuator",
+          "device": "Device",
+          "gateway": "Gateway"
+        },
+        "topicMapping": [
+          {
+            "pattern": "sensors/+/temperature",
+            "type": "Sensor",
+            "properties": {
+              "category": "Temperature",
+              "unit": "°C"
+            }
+          },
+          {
+            "pattern": "devices/+/status",
+            "type": "Device",
+            "properties": {
+              "category": "Status"
+            }
+          }
+        ]
+      },
+      "generic": {
+        "enabled": true,
+        "entityPrefix": "GEN:",
+        "defaultType": "GenericEntity",
+        "metadataFields": ["timestamp", "source", "quality"],
+        "preserveOriginal": true
+      }
+    },
+    "relationships": {
+      "autoDetect": true,
+      "rules": [
+        {
+          "type": "parentOf",
+          "sourcePattern": "^(OPC:|AAS:).*Device.*$",
+          "targetPattern": "^(OPC:|AAS:).*Sensor.*$"
+        },
+        {
+          "type": "connectedTo",
+          "sourcePattern": "^.*Gateway.*$",
+          "targetPattern": "^.*Device.*$"
+        }
+      ]
+    },
+    "dataModel": {
+      "entityTypes": [
+        {
+          "name": "Device",
+          "description": "Physical or logical device",
+          "requiredProperties": ["id", "name", "type"],
+          "optionalProperties": ["location", "manufacturer", "model", "serialNumber", "status"]
+        },
+        {
+          "name": "Sensor",
+          "description": "Measurement sensor",
+          "requiredProperties": ["id", "name", "type", "value"],
+          "optionalProperties": ["unit", "accuracy", "range", "timestamp", "quality"]
+        },
+        {
+          "name": "Actuator",
+          "description": "Control actuator",
+          "requiredProperties": ["id", "name", "type", "state"],
+          "optionalProperties": ["command", "feedback", "timestamp", "status"]
+        },
+        {
+          "name": "Asset",
+          "description": "Asset Administration Shell entity",
+          "requiredProperties": ["id", "name", "type"],
+          "optionalProperties": ["manufacturer", "productCode", "serialNumber", "assetKind"]
+        },
+        {
+          "name": "Component",
+          "description": "Component or submodel of an asset",
+          "requiredProperties": ["id", "name", "type"],
+          "optionalProperties": ["semanticId", "kind", "parent"]
+        }
+      ]
+    },
+    "export": {
+      "json": {
+        "pretty": true,
+        "includeMetadata": true,
+        "includeRelationships": true
+      },
+      "ngsiLd": {
+        "context": "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
+        "customContext": {
+          "Device": "https://industry40.org/context/Device",
+          "Sensor": "https://industry40.org/context/Sensor",
+          "Actuator": "https://industry40.org/context/Actuator"
+        }
+      },
+      "toon": {
+        "format": "ttl",
+        "namespace": "http://example.com/toon/",
+        "includeInferences": false
+      }
+    },
+    "storage": {
+      "persist": true,
+      "ttl": 3600,
+      "maxEntities": 10000,
+      "cleanupInterval": 300
+    }
+  }
+}

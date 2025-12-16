@@ -6,6 +6,7 @@ const statusRoutes = require('./routes/status');
 const sourcesRoutes = require('./routes/sources');
 const dataRoutes = require('./routes/data');
 const configRoutes = require('./routes/config');
+const mappingRoutes = require('./routes/mapping');
 
 // Middleware per autenticazione (opzionale)
 const authMiddleware = (req, res, next) => {
@@ -35,6 +36,7 @@ router.use('/status', statusRoutes);
 router.use('/sources', sourcesRoutes);
 router.use('/data', dataRoutes);
 router.use('/config', configRoutes);
+router.use('/mapping', mappingRoutes.router);
 
 // API documentation endpoint
 router.get('/', (req, res) => {
@@ -65,6 +67,17 @@ router.get('/', (req, res) => {
         'GET /api/config': 'Get current configuration',
         'POST /api/config/reload': 'Reload configuration from file',
         'GET /api/config/sources': 'Get sources configuration'
+      },
+      mapping: {
+        'GET /api/mapping/entities': 'Get all mapped entities',
+        'GET /api/mapping/entities/:id': 'Get specific mapped entity',
+        'GET /api/mapping/entities/type/:type': 'Get entities by type',
+        'GET /api/mapping/export/json': 'Export mapped data to JSON',
+        'GET /api/mapping/export/ngsi-ld': 'Export mapped data to NGSI-LD',
+        'GET /api/mapping/export/toon': 'Export mapped data to TOON',
+        'GET /api/mapping/statistics': 'Get mapping statistics',
+        'GET /api/mapping/health': 'Get mapping engine health',
+        'DELETE /api/mapping/entities': 'Clear all mapped data'
       }
     },
     authentication: process.env.API_KEY ? 'API Key required (x-api-key header or apiKey query param)' : 'No authentication required'
