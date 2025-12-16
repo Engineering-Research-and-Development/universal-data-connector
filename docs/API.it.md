@@ -1,10 +1,10 @@
-# API Documentation
+# Documentazione API
 
 **[🇬🇧 English](API.md)** | **[🇮🇹 Italiano](API.it.md)**
 
 ---
 
-## Base URL
+## URL Base
 ```
 http://localhost:3000/api
 ```

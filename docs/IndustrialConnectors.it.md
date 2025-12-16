@@ -1,10 +1,10 @@
-# Industrial Connectors Documentation
+# Documentazione Connettori Industriali
 
 **[🇬🇧 English](IndustrialConnectors.md)** | **[🇮🇹 Italiano](IndustrialConnectors.it.md)**
 
 ---
 
-This document provides detailed information about all industrial protocol connectors available in the Universal Data Connector.
+Questo documento fornisce informazioni dettagliate su tutti i connettori di protocolli industriali disponibili nell'Universal Data Connector.
 
 ## Table of Contents
 

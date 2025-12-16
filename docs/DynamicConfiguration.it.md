@@ -1,16 +1,16 @@
-# Dynamic Configuration API Guide
+# Guida API Configurazione Dinamica
 
 **[🇬🇧 English](DynamicConfiguration.md)** | **[🇮🇹 Italiano](DynamicConfiguration.it.md)**
 
 ---
 
-This guide explains how to use REST APIs to dynamically configure the Universal Data Connector without service restart.
+Questa guida spiega come utilizzare le API REST per configurare dinamicamente il Universal Data Connector senza dover riavviare il servizio.
 
-## Overview
+## Panoramica
 
-The Universal Data Connector supports dynamic reconfiguration of:
-- **Sources Configuration**: Add, modify or remove data sources
-- **Storage Configuration**: Change storage backend for data persistence
+Il Universal Data Connector supporta la riconfigurazione dinamica di:
+- **Sources Configuration**: Aggiungere, modificare o rimuovere fonti dati
+- **Storage Configuration**: Cambiare il backend di storage per i dati
 
 Tutte le modifiche vengono applicate immediatamente e persistono su file di configurazione.
 

@@ -1,12 +1,12 @@
-# Configuration Guide
+# Guida alla Configurazione
 
 **[🇬🇧 English](Configuration.md)** | **[🇮🇹 Italiano](Configuration.it.md)**
 
 ---
 
-## Overview
+## Panoramica
 
-The Universal Data Connector uses a JSON file-based configuration system to define data sources and system parameters.
+L'Universal Data Connector utilizza un sistema di configurazione basato su file JSON per definire le sources di dati e i parametri del sistema.
 
 ## File di Configurazione
 

@@ -1,10 +1,10 @@
-# Storage Configuration Guide
+# Guida Configurazione Storage
 
 **[🇬🇧 English](Storage.md)** | **[🇮🇹 Italiano](Storage.it.md)**
 
 ---
 
-The Universal Data Connector supports multiple storage types to persist data collected from various sources. This guide explains how to configure and use the available storage backends.
+Il Universal Data Connector supporta diversi tipi di storage per persistere i dati raccolti dalle varie fonti. Questa guida spiega come configurare e utilizzare i diversi backend di storage disponibili.
 
 ## Tipi di Storage Supportati
 

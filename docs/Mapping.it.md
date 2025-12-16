@@ -1,12 +1,12 @@
-# Mapping Tools Documentation
+# Documentazione Mapping Tools
 
 **[🇬🇧 English](Mapping.md)** | **[🇮🇹 Italiano](Mapping.it.md)**
 
 ---
 
-## Overview
+## Panoramica
 
-The **Mapping Tools** module provides a unified data model and transformation layer for the Universal Data Connector. It maps data from various industrial protocols (OPC-UA, Modbus, AAS, MQTT, etc.) into a common Universal Data Model that can be exported in multiple formats including JSON, NGSI-LD, and TOON.
+Il modulo **Mapping Tools** fornisce un modello dati unificato e un layer di trasformazione per l'Universal Data Connector. It maps data from various industrial protocols (OPC-UA, Modbus, AAS, MQTT, etc.) into a common Universal Data Model that can be exported in multiple formats including JSON, NGSI-LD, and TOON.
 
 ## Architecture
 
