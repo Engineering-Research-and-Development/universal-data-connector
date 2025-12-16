@@ -1,6 +1,6 @@
 const net = require('net');
-const BaseConnector = require('./BaseConnector');
-const logger = require('../utils/logger');
+const BaseConnector = require('../BaseConnector');
+const logger = require('../../utils/logger');
 
 /**
  * FinsTcpConnector - Omron FINS (Factory Interface Network Service) TCP protocol

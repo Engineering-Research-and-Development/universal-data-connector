@@ -1,6 +1,6 @@
 const nodes7 = require('nodes7');
-const BaseConnector = require('./BaseConnector');
-const logger = require('../utils/logger');
+const BaseConnector = require('../BaseConnector');
+const logger = require('../../utils/logger');
 
 /**
  * S7Connector - Siemens S7 PLC connector (S7-300, S7-400, S7-1200, S7-1500)

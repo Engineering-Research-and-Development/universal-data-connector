@@ -1,5 +1,5 @@
-const BaseConnector = require('./BaseConnector');
-const logger = require('../utils/logger');
+const BaseConnector = require('../BaseConnector');
+const logger = require('../../utils/logger');
 
 /**
  * EtherCATConnector - EtherCAT protocol connector

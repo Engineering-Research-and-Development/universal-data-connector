@@ -10,8 +10,8 @@ const {
   DeadbandType,
   DataChangeTrigger
 } = require('node-opcua');
-const BaseConnector = require('./BaseConnector');
-const logger = require('../utils/logger');
+const BaseConnector = require('../BaseConnector');
+const logger = require('../../utils/logger');
 
 class OpcUaConnector extends BaseConnector {
   constructor(config) {

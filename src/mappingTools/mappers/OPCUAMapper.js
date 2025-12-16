@@ -1,5 +1,5 @@
-const BaseMapper = require('./BaseMapper');
-const logger = require('../utils/logger');
+const BaseMapper = require('../BaseMapper');
+const logger = require('../../utils/logger');
 
 /**
  * OPCUAMapper - Maps OPC UA data to Universal Data Model

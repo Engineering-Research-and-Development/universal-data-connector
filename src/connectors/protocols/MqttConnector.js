@@ -1,6 +1,6 @@
 const mqtt = require('mqtt');
-const BaseConnector = require('./BaseConnector');
-const logger = require('../utils/logger');
+const BaseConnector = require('../BaseConnector');
+const logger = require('../../utils/logger');
 
 class MqttConnector extends BaseConnector {
   constructor(config) {

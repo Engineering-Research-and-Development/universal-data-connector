@@ -1,6 +1,6 @@
 const axios = require('axios');
-const BaseConnector = require('./BaseConnector');
-const logger = require('../utils/logger');
+const BaseConnector = require('../BaseConnector');
+const logger = require('../../utils/logger');
 
 /**
  * AASConnector - Asset Administration Shell (AAS) Connector

@@ -1,6 +1,6 @@
 const SerialPort = require('serialport');
-const BaseConnector = require('./BaseConnector');
-const logger = require('../utils/logger');
+const BaseConnector = require('../BaseConnector');
+const logger = require('../../utils/logger');
 
 /**
  * SerialConnector - Generic Serial/RS232/RS485 communication

@@ -1,6 +1,6 @@
 const bacnet = require('bacstack');
-const BaseConnector = require('./BaseConnector');
-const logger = require('../utils/logger');
+const BaseConnector = require('../BaseConnector');
+const logger = require('../../utils/logger');
 
 /**
  * BACnetConnector - Building Automation and Control Networks protocol connector

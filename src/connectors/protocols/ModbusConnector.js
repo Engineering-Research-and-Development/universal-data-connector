@@ -1,6 +1,6 @@
 const ModbusRTU = require('modbus-serial');
-const BaseConnector = require('./BaseConnector');
-const logger = require('../utils/logger');
+const BaseConnector = require('../BaseConnector');
+const logger = require('../../utils/logger');
 
 /**
  * ModbusConnector - Supports Modbus TCP and RTU protocols
