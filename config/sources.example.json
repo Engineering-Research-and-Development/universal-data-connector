@@ -211,6 +211,353 @@
         "enabled": true,
         "transforms": ["normalizeTimestamp", "convertToNumber"]
       }
+    },
+    {
+      "id": "modbus-tcp-example",
+      "type": "modbus",
+      "enabled": false,
+      "name": "Modbus TCP PLC",
+      "description": "Modbus TCP PLC Example",
+      "config": {
+        "connectionType": "tcp",
+        "host": "192.168.1.10",
+        "port": 502,
+        "unitId": 1,
+        "pollingInterval": 1000,
+        "timeout": 5000,
+        "registers": [
+          {
+            "name": "temperature_sensor",
+            "address": 0,
+            "type": "input",
+            "dataType": "float",
+            "count": 2,
+            "description": "Temperature sensor reading in °C"
+          },
+          {
+            "name": "pressure_sensor",
+            "address": 10,
+            "type": "input",
+            "dataType": "uint16",
+            "count": 1,
+            "description": "Pressure sensor reading in bar"
+          },
+          {
+            "name": "motor_speed",
+            "address": 100,
+            "type": "holding",
+            "dataType": "uint16",
+            "count": 1,
+            "description": "Motor speed setpoint in RPM"
+          },
+          {
+            "name": "valve_open",
+            "address": 0,
+            "type": "coil",
+            "dataType": "bool",
+            "count": 1,
+            "description": "Main valve open/closed status"
+          }
+        ]
+      },
+      "retryConfig": {
+        "enabled": true,
+        "maxRetries": 5,
+        "retryDelay": 3000
+      }
+    },
+    {
+      "id": "siemens-s7-example",
+      "type": "s7",
+      "enabled": false,
+      "name": "Siemens S7-1200 PLC",
+      "description": "Siemens S7-1200 PLC Example",
+      "config": {
+        "host": "192.168.1.20",
+        "port": 102,
+        "rack": 0,
+        "slot": 1,
+        "timeout": 5000,
+        "pollingInterval": 500,
+        "variables": {
+          "conveyor_speed": "DB1,REAL0",
+          "conveyor_running": "DB1,X4.0",
+          "part_counter": "DB1,DINT8",
+          "quality_ok": "DB1,X12.0",
+          "alarm_active": "DB1,X12.1",
+          "production_rate": "DB2,REAL0",
+          "temperature_zone1": "DB3,REAL0",
+          "temperature_zone2": "DB3,REAL4"
+        }
+      },
+      "retryConfig": {
+        "enabled": true,
+        "maxRetries": 3,
+        "retryDelay": 2000
+      }
+    },
+    {
+      "id": "bacnet-hvac-example",
+      "type": "bacnet",
+      "enabled": false,
+      "name": "BACnet HVAC System",
+      "description": "BACnet HVAC System Example",
+      "config": {
+        "port": 47808,
+        "interface": "192.168.1.100",
+        "broadcastAddress": "192.168.1.255",
+        "timeout": 6000,
+        "pollingInterval": 10000,
+        "devices": [
+          {
+            "address": "192.168.1.40",
+            "deviceId": 1234,
+            "description": "Floor 1 AHU Controller",
+            "objects": [
+              {
+                "name": "room_temp",
+                "type": 0,
+                "instance": 1,
+                "property": 85,
+                "description": "Room temperature"
+              },
+              {
+                "name": "setpoint",
+                "type": 2,
+                "instance": 1,
+                "property": 85,
+                "description": "Temperature setpoint"
+              },
+              {
+                "name": "fan_status",
+                "type": 3,
+                "instance": 1,
+                "property": 85,
+                "description": "Fan running status"
+              },
+              {
+                "name": "damper_position",
+                "type": 1,
+                "instance": 1,
+                "property": 85,
+                "description": "Damper position %"
+              }
+            ]
+          }
+        ]
+      },
+      "retryConfig": {
+        "enabled": true,
+        "maxRetries": 3,
+        "retryDelay": 5000
+      }
+    },
+    {
+      "id": "omron-fins-example",
+      "type": "fins",
+      "enabled": false,
+      "name": "Omron NJ PLC",
+      "description": "Omron NJ PLC Example",
+      "config": {
+        "host": "192.168.1.50",
+        "port": 9600,
+        "localNode": 0,
+        "remoteNode": 0,
+        "localNet": 0,
+        "remoteNet": 0,
+        "pollingInterval": 1000,
+        "memory": [
+          {
+            "name": "robot_x_position",
+            "area": "DM",
+            "address": 1000,
+            "length": 2,
+            "dataType": "float",
+            "description": "Robot X axis position"
+          },
+          {
+            "name": "robot_y_position",
+            "area": "DM",
+            "address": 1002,
+            "length": 2,
+            "dataType": "float",
+            "description": "Robot Y axis position"
+          },
+          {
+            "name": "gripper_status",
+            "area": "CIO",
+            "address": 100,
+            "length": 1,
+            "dataType": "word",
+            "description": "Gripper status word"
+          },
+          {
+            "name": "cycle_complete",
+            "area": "WR",
+            "address": 0,
+            "length": 1,
+            "dataType": "bool",
+            "description": "Cycle completion flag"
+          }
+        ]
+      },
+      "retryConfig": {
+        "enabled": true,
+        "maxRetries": 5,
+        "retryDelay": 3000
+      }
+    },
+    {
+      "id": "mitsubishi-melsec-example",
+      "type": "melsec",
+      "enabled": false,
+      "name": "Mitsubishi Q Series PLC",
+      "description": "Mitsubishi Q Series PLC Example",
+      "config": {
+        "host": "192.168.1.60",
+        "port": 5000,
+        "protocol": "3E",
+        "networkNo": 0,
+        "pcNo": 255,
+        "pollingInterval": 1000,
+        "devices": [
+          {
+            "name": "start_button",
+            "deviceCode": "X",
+            "address": 0,
+            "length": 1,
+            "dataType": "bool",
+            "description": "Start button input"
+          },
+          {
+            "name": "stop_button",
+            "deviceCode": "X",
+            "address": 1,
+            "length": 1,
+            "dataType": "bool",
+            "description": "Stop button input"
+          },
+          {
+            "name": "running_lamp",
+            "deviceCode": "Y",
+            "address": 10,
+            "length": 1,
+            "dataType": "bool",
+            "description": "Running indicator lamp"
+          },
+          {
+            "name": "production_count",
+            "deviceCode": "D",
+            "address": 100,
+            "length": 1,
+            "dataType": "uint16",
+            "description": "Production counter"
+          },
+          {
+            "name": "process_temperature",
+            "deviceCode": "D",
+            "address": 200,
+            "length": 2,
+            "dataType": "float",
+            "description": "Process temperature"
+          }
+        ]
+      },
+      "retryConfig": {
+        "enabled": true,
+        "maxRetries": 3,
+        "retryDelay": 2000
+      }
+    },
+    {
+      "id": "rockwell-cip-example",
+      "type": "cip",
+      "enabled": false,
+      "name": "Allen-Bradley ControlLogix",
+      "description": "Allen-Bradley ControlLogix Example (requires ethernet-ip library)",
+      "config": {
+        "host": "192.168.1.70",
+        "slot": 0,
+        "pollingInterval": 500,
+        "tags": [
+          {
+            "name": "conveyor_speed",
+            "address": "Program:MainProgram.ConveyorSpeed",
+            "dataType": "DINT"
+          },
+          {
+            "name": "motor_running",
+            "address": "Program:MainProgram.Motor1_Running",
+            "dataType": "BOOL"
+          },
+          {
+            "name": "process_temp",
+            "address": "Program:MainProgram.ProcessTemp",
+            "dataType": "REAL"
+          }
+        ]
+      },
+      "retryConfig": {
+        "enabled": true,
+        "maxRetries": 3,
+        "retryDelay": 2000
+      }
+    },
+    {
+      "id": "serial-modbus-rtu-example",
+      "type": "modbus",
+      "enabled": false,
+      "name": "Modbus RTU Serial",
+      "description": "Modbus RTU via Serial Example",
+      "config": {
+        "connectionType": "rtu",
+        "serialPort": "COM3",
+        "baudRate": 9600,
+        "dataBits": 8,
+        "stopBits": 1,
+        "parity": "none",
+        "unitId": 1,
+        "pollingInterval": 2000,
+        "timeout": 5000,
+        "registers": [
+          {
+            "name": "sensor_value",
+            "address": 0,
+            "type": "input",
+            "dataType": "uint16",
+            "count": 1
+          }
+        ]
+      },
+      "retryConfig": {
+        "enabled": true,
+        "maxRetries": 3,
+        "retryDelay": 3000
+      }
+    },
+    {
+      "id": "serial-ascii-example",
+      "type": "serial",
+      "enabled": false,
+      "name": "Serial ASCII Device",
+      "description": "Generic Serial ASCII Protocol Example",
+      "config": {
+        "portName": "/dev/ttyUSB0",
+        "baudRate": 115200,
+        "dataBits": 8,
+        "stopBits": 1,
+        "parity": "none",
+        "mode": "passive",
+        "terminator": "0D0A",
+        "parser": {
+          "type": "ascii"
+        }
+      },
+      "retryConfig": {
+        "enabled": true,
+        "maxRetries": 3,
+        "retryDelay": 2000
+      }
     }
   ]
 }

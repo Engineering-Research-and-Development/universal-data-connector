@@ -13,20 +13,27 @@ Un connettore dati universale configurabile per Industry 5.0 che supporta l'inge
 
 ## Sources Supportate
 
-### OPC UA
-- Connessione a server OPC UA
-- Subscription a nodi specifici
-- Gestione autenticazione e certificati
+### Protocolli IT/IoT
+- **OPC UA** - Server OPC UA con subscription a nodi e gestione certificati
+- **MQTT** - Broker MQTT con subscription a topic multipli e QoS
+- **HTTP REST** - Polling endpoint REST con autenticazione (Bearer, Basic, API Key)
 
-### MQTT
-- Connessione a broker MQTT
-- Subscription a topic multipli
-- Supporto QoS levels
+### Protocolli Industriali PLC
+- **Modbus TCP/RTU** - Lettura/scrittura registri Holding, Input, Coil, Discrete
+- **Siemens S7** - S7-300, S7-400, S7-1200, S7-1500 via protocollo S7
+- **EtherCAT** - Protocollo real-time per automazione (richiede hardware dedicato)
+- **PROFINET** - Standard Siemens per reti industriali Ethernet
+- **FINS (Omron)** - Omron CJ, CS, CP, NJ, NX series PLC
+- **MELSEC (Mitsubishi)** - MC Protocol per Q, L, FX series
+- **CIP/EtherNet/IP** - Allen-Bradley/Rockwell ControlLogix, CompactLogix
 
-### HTTP REST
-- Polling di endpoint REST
-- Supporto autenticazione (Bearer, Basic)
-- Scheduling configurabile
+### Protocolli Building Automation
+- **BACnet/IP** - Building automation per HVAC, lighting, controllo accessi
+
+### Comunicazione Seriale
+- **Serial/RS232/RS485** - Protocolli custom su porta seriale con parser configurabili
+
+📖 **[Documentazione Completa Connettori Industriali](docs/IndustrialConnectors.md)**
 
 ## Quick Start
 
