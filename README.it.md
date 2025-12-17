@@ -49,6 +49,15 @@
 
 📖 **[Documentazione Completa Connettori Industriali](docs/IndustrialConnectors.md)**
 
+## Auto-Discovery
+
+Il connettore supporta la **discovery automatica** dei data point disponibili:
+- **OPC UA** - Browse address space
+- **MQTT** - Scopri topic attivi
+- **Modbus** - Scansiona range di registri
+
+📖 **[Guida Completa Auto-Discovery](docs/AutoDiscovery.it.md)**
+
 ## Mapping Tools
 
 Il **Mapping Tools** modulo trasforma automaticamente i dati da tutti i protocolli in un **Universal Data Model** unificato, esportabile in:
@@ -110,6 +119,50 @@ Esempio di configurazione:
 }
 ```
 
+## Auto-Discovery
+
+Il connettore supporta la **discovery automatica** dei data point disponibili per i protocolli che permettono l'esplorazione:
+
+### Protocolli con Discovery Abilitata
+- **OPC UA** - Browse dell'address space per scoprire i nodi
+- **MQTT** - Ascolto su topic wildcard per scoprire flussi di messaggi
+- **Modbus** - Scansione dei range di registri per trovare indirizzi che rispondono
+
+### Come Usare la Discovery
+1. Configura la source con array **vuoto** per nodes/topics/registers
+2. Avvia il connettore - scoprirà automaticamente i data point disponibili
+3. Usa `GET /api/sources/:id/discovery` per visualizzare gli elementi scoperti
+4. Seleziona gli elementi desiderati e configura con `POST /api/sources/:id/configure`
+5. Il connettore si riavvia con il monitoraggio attivo
+
+**Esempio: OPC UA Auto-Discovery**
+```json
+{
+  "id": "plc-001",
+  "type": "opcua",
+  "config": {
+    "endpoint": "opc.tcp://192.168.1.100:4840",
+    "nodes": []  // Vuoto = modalità auto-discovery
+  }
+}
+```
+
+Dopo la connessione, chiama l'endpoint discovery:
+```bash
+GET /api/sources/plc-001/discovery
+# Restituisce tutti i nodi scoperti con i metadati
+```
+
+Configura i nodi selezionati:
+```bash
+POST /api/sources/plc-001/configure
+{
+  "nodes": ["ns=2;s=Temperature", "ns=2;s=Pressure"]
+}
+```
+
+📖 **[Documentazione Completa Discovery](docs/API.it.md#discovery-endpoints)**
+
 ## API Endpoints
 
 ### Status & Sources
@@ -119,6 +172,10 @@ Esempio di configurazione:
 - `POST /api/sources/:id/start` - Avvia una source
 - `POST /api/sources/:id/stop` - Ferma una source
 - `GET /api/data/latest` - Ultimi dati ricevuti
+
+### Discovery
+- `GET /api/sources/:id/discovery` - Ottieni elementi auto-scoperti
+- `POST /api/sources/:id/configure` - Configura e attiva gli elementi scoperti
 
 ### Mapping & Export
 - `GET /api/mapping/entities` - Tutte le entità mappate

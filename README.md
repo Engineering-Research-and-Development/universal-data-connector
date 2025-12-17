@@ -49,6 +49,15 @@
 
 📖 **[Complete Industrial Connectors Documentation](docs/IndustrialConnectors.md)**
 
+## Auto-Discovery
+
+The connector supports **automatic discovery** of available data points:
+- **OPC UA** - Browse address space
+- **MQTT** - Discover active topics
+- **Modbus** - Scan register ranges
+
+📖 **[Complete Auto-Discovery Guide](docs/AutoDiscovery.md)**
+
 ## Mapping Tools
 
 The **Mapping Tools** module automatically transforms data from all protocols into a unified **Universal Data Model**, exportable to:
