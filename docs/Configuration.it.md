@@ -85,9 +85,12 @@ Il file principale di configurazione si trova in `config/sources.json` e contien
 - `securityPolicy`: Politica di sicurezza
 - `securityMode`: Modalità di sicurezza
 - `username/password`: Credenziali opzionali
-- `nodes`: Array di node IDs da monitorare
+- `nodes`: Array di node IDs da monitorare (opzionale - attiva l'auto-discovery se vuoto)
 - `subscriptionOptions`: Opzioni per la subscription
 - `clientOptions`: Opzioni del client OPC UA
+
+**Modalità Auto-Discovery:**
+Se l'array `nodes` è vuoto o omesso, il connettore esplorerà automaticamente l'address space OPC UA e scoprirà i nodi disponibili. Potrai quindi utilizzare gli endpoint API di discovery per visualizzare e configurare i nodi scoperti.
 
 ### MQTT Sources
 
@@ -122,9 +125,12 @@ Il file principale di configurazione si trova in `config/sources.json` e contien
 - `broker`: URL del broker MQTT
 - `clientId`: ID client univoco
 - `username/password`: Credenziali del broker
-- `topics`: Array di topic da sottoscrivere (supporta wildcards)
+- `topics`: Array di topic da sottoscrivere (supporta wildcards) (opzionale - attiva l'auto-discovery se vuoto)
 - `qos`: Quality of Service level (0, 1, 2)
 - `options`: Opzioni aggiuntive del client MQTT
+
+**Modalità Auto-Discovery:**
+Se l'array `topics` è vuoto o omesso, il connettore si sottoscriverà al topic wildcard '#' per 10 secondi per scoprire tutti i topic attivi sul broker. Potrai quindi utilizzare gli endpoint API di discovery per visualizzare e configurare i topic scoperti.
 
 ### HTTP Sources
 
@@ -173,6 +179,84 @@ Il file principale di configurazione si trova in `config/sources.json` e contien
 - `timeout`: Timeout richiesta in millisecondi
 - `params`: Query parameters
 - `data`: Body della richiesta (per POST/PUT)
+
+### Modbus Sources
+
+```json
+{
+  "id": "modbus-plc",
+  "type": "modbus",
+  "enabled": true,
+  "name": "Modbus PLC",
+  "config": {
+    "transport": "tcp",
+    "host": "192.168.1.50",
+    "port": 502,
+    "unitId": 1,
+    "timeout": 5000,
+    "registers": [
+      {
+        "address": 0,
+        "type": "HoldingRegister",
+        "name": "Temperature",
+        "scale": 0.1
+      },
+      {
+        "address": 10,
+        "type": "InputRegister",
+        "name": "Pressure",
+        "scale": 1
+      },
+      {
+        "address": 100,
+        "type": "Coil",
+        "name": "MotorStatus"
+      }
+    ],
+    "polling": {
+      "enabled": true,
+      "interval": 1000
+    },
+    "discoveryRanges": {
+      "holdingRegisters": { "start": 0, "count": 100 },
+      "inputRegisters": { "start": 0, "count": 100 },
+      "coils": { "start": 0, "count": 100 },
+      "discreteInputs": { "start": 0, "count": 100 }
+    }
+  }
+}
+```
+
+**Parametri Modbus:**
+- `transport`: Tipo di trasporto ('tcp' o 'rtu')
+- `host`: Indirizzo IP del dispositivo Modbus TCP
+- `port`: Porta Modbus (default: 502)
+- `unitId`: ID unità Modbus (slave address)
+- `timeout`: Timeout richiesta in millisecondi
+- `registers`: Array di registri da leggere (opzionale - attiva l'auto-discovery se vuoto)
+  - `address`: Indirizzo del registro
+  - `type`: Tipo registro (HoldingRegister, InputRegister, Coil, DiscreteInput)
+  - `name`: Nome descrittivo
+  - `scale`: Fattore di scala (opzionale)
+- `polling`: Configurazione polling
+- `discoveryRanges`: Range di indirizzi per l'auto-discovery (opzionale)
+
+**Modalità Auto-Discovery:**
+Se l'array `registers` è vuoto o omesso, il connettore scansionerà i range di indirizzi configurati alla ricerca di registri che rispondono, per tutti i function code (Holding Registers, Input Registers, Coils, Discrete Inputs). I range predefiniti scansionano 100 indirizzi partendo da 0 per ogni tipo di registro. Puoi personalizzare questi range con il parametro `discoveryRanges`. Utilizza gli endpoint API di discovery per visualizzare i registri scoperti e configurare quali monitorare.
+
+**Configurazione RTU (Seriale):**
+Per Modbus RTU su porta seriale:
+```json
+{
+  "transport": "rtu",
+  "serialPort": "COM1",
+  "baudRate": 9600,
+  "dataBits": 8,
+  "stopBits": 1,
+  "parity": "none",
+  "unitId": 1
+}
+```
 
 ## Configurazione Retry
 

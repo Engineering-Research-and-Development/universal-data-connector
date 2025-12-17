@@ -110,6 +110,50 @@ Configuration example:
 }
 ```
 
+## Auto-Discovery
+
+The connector supports **automatic discovery** of available data points for protocols that allow exploration:
+
+### Discovery-Enabled Protocols
+- **OPC UA** - Browse address space to discover nodes
+- **MQTT** - Listen to wildcard topics to discover message streams
+- **Modbus** - Scan register ranges to find responsive addresses
+
+### How to Use Discovery
+1. Configure source with **empty** nodes/topics/registers array
+2. Start the connector - it will automatically discover available data points
+3. Use `GET /api/sources/:id/discovery` to view discovered items
+4. Select desired items and configure with `POST /api/sources/:id/configure`
+5. Connector restarts with active monitoring
+
+**Example: OPC UA Auto-Discovery**
+```json
+{
+  "id": "plc-001",
+  "type": "opcua",
+  "config": {
+    "endpoint": "opc.tcp://192.168.1.100:4840",
+    "nodes": []  // Empty = auto-discovery mode
+  }
+}
+```
+
+After connection, call discovery endpoint:
+```bash
+GET /api/sources/plc-001/discovery
+# Returns all discovered nodes with metadata
+```
+
+Configure selected nodes:
+```bash
+POST /api/sources/plc-001/configure
+{
+  "nodes": ["ns=2;s=Temperature", "ns=2;s=Pressure"]
+}
+```
+
+📖 **[Complete Discovery Documentation](docs/API.md#discovery-endpoints)**
+
 ## API Endpoints
 
 ### Status & Sources
@@ -119,6 +163,10 @@ Configuration example:
 - `POST /api/sources/:id/start` - Start a source
 - `POST /api/sources/:id/stop` - Stop a source
 - `GET /api/data/latest` - Latest received data
+
+### Discovery
+- `GET /api/sources/:id/discovery` - Get auto-discovered items
+- `POST /api/sources/:id/configure` - Configure and activate discovered items
 
 ### Mapping & Export
 - `GET /api/mapping/entities` - All mapped entities

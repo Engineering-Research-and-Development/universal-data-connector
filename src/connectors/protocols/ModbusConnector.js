@@ -39,9 +39,12 @@ class ModbusConnector extends BaseConnector {
       }
     }
     
-    if (!config.registers || !Array.isArray(config.registers) || config.registers.length === 0) {
-      throw new Error('Modbus connector requires registers array with at least one register definition');
+    // Registers are optional - if empty, auto-discovery will be triggered
+    if (config.registers && !Array.isArray(config.registers)) {
+      throw new Error('Modbus registers must be an array');
     }
+    this.autoDiscovery = !config.registers || config.registers.length === 0;
+    this.discoveredRegisters = [];
   }
 
   async initialize() {
@@ -81,7 +84,16 @@ class ModbusConnector extends BaseConnector {
       }
       
       this.onConnected();
-      this.startPolling();
+      
+      // If auto-discovery is enabled, discover registers
+      if (this.autoDiscovery) {
+        logger.info(`Auto-discovery enabled for Modbus connector '${this.id}'`);
+        await this.discoverRegisters();
+        logger.info(`Auto-discovery completed. Use /api/sources/${this.id}/discovery to see discovered registers`);
+      } else {
+        // Start normal polling
+        this.startPolling();
+      }
       
     } catch (error) {
       logger.error(`Modbus connector '${this.id}' connection failed:`, error);
@@ -104,6 +116,152 @@ class ModbusConnector extends BaseConnector {
     }
     
     this.isConnected = false;
+  }
+
+  /**
+   * Discover available Modbus registers by scanning common address ranges
+   * Scans for responsive registers in typical industrial ranges
+   */
+  async discoverRegisters() {
+    try {
+      logger.info(`Starting register discovery for Modbus connector '${this.id}'`);
+      
+      const { config } = this.config;
+      const unitId = config.unitId || 1;
+      const discoveryRanges = config.discoveryRanges || {
+        holdingRegisters: { start: 0, count: 100 },
+        inputRegisters: { start: 0, count: 100 },
+        coils: { start: 0, count: 100 },
+        discreteInputs: { start: 0, count: 100 }
+      };
+      
+      this.client.setID(unitId);
+      const discovered = [];
+      
+      // Scan Holding Registers (FC3)
+      logger.info(`Scanning Holding Registers (${discoveryRanges.holdingRegisters.start}-${discoveryRanges.holdingRegisters.start + discoveryRanges.holdingRegisters.count - 1})`);
+      const holdingRegs = await this.scanRegisters('holding', discoveryRanges.holdingRegisters.start, discoveryRanges.holdingRegisters.count);
+      discovered.push(...holdingRegs);
+      
+      // Scan Input Registers (FC4)
+      logger.info(`Scanning Input Registers (${discoveryRanges.inputRegisters.start}-${discoveryRanges.inputRegisters.start + discoveryRanges.inputRegisters.count - 1})`);
+      const inputRegs = await this.scanRegisters('input', discoveryRanges.inputRegisters.start, discoveryRanges.inputRegisters.count);
+      discovered.push(...inputRegs);
+      
+      // Scan Coils (FC1)
+      logger.info(`Scanning Coils (${discoveryRanges.coils.start}-${discoveryRanges.coils.start + discoveryRanges.coils.count - 1})`);
+      const coils = await this.scanRegisters('coil', discoveryRanges.coils.start, discoveryRanges.coils.count);
+      discovered.push(...coils);
+      
+      // Scan Discrete Inputs (FC2)
+      logger.info(`Scanning Discrete Inputs (${discoveryRanges.discreteInputs.start}-${discoveryRanges.discreteInputs.start + discoveryRanges.discreteInputs.count - 1})`);
+      const discreteInputs = await this.scanRegisters('discrete', discoveryRanges.discreteInputs.start, discoveryRanges.discreteInputs.count);
+      discovered.push(...discreteInputs);
+      
+      this.discoveredRegisters = discovered;
+      
+      logger.info(`Discovered ${discovered.length} responsive registers for connector '${this.id}'`);
+      
+      // Emit discovery event
+      this.emit('registersDiscovered', {
+        sourceId: this.id,
+        protocol: 'Modbus',
+        registers: discovered
+      });
+      
+      return discovered;
+      
+    } catch (error) {
+      logger.error(`Failed to discover registers for connector '${this.id}':`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Scan a specific range of registers
+   */
+  async scanRegisters(type, startAddress, count) {
+    const discovered = [];
+    const batchSize = 10; // Read registers in batches
+    
+    for (let addr = startAddress; addr < startAddress + count; addr += batchSize) {
+      const readCount = Math.min(batchSize, startAddress + count - addr);
+      
+      try {
+        let result;
+        
+        switch (type) {
+          case 'holding':
+            result = await this.client.readHoldingRegisters(addr, readCount);
+            if (result.data) {
+              for (let i = 0; i < result.data.length; i++) {
+                discovered.push({
+                  address: addr + i,
+                  type: 'HoldingRegister',
+                  name: `HR_${addr + i}`,
+                  value: result.data[i],
+                  functionCode: 3
+                });
+              }
+            }
+            break;
+            
+          case 'input':
+            result = await this.client.readInputRegisters(addr, readCount);
+            if (result.data) {
+              for (let i = 0; i < result.data.length; i++) {
+                discovered.push({
+                  address: addr + i,
+                  type: 'InputRegister',
+                  name: `IR_${addr + i}`,
+                  value: result.data[i],
+                  functionCode: 4
+                });
+              }
+            }
+            break;
+            
+          case 'coil':
+            result = await this.client.readCoils(addr, readCount);
+            if (result.data) {
+              for (let i = 0; i < result.data.length; i++) {
+                discovered.push({
+                  address: addr + i,
+                  type: 'Coil',
+                  name: `C_${addr + i}`,
+                  value: result.data[i],
+                  functionCode: 1
+                });
+              }
+            }
+            break;
+            
+          case 'discrete':
+            result = await this.client.readDiscreteInputs(addr, readCount);
+            if (result.data) {
+              for (let i = 0; i < result.data.length; i++) {
+                discovered.push({
+                  address: addr + i,
+                  type: 'DiscreteInput',
+                  name: `DI_${addr + i}`,
+                  value: result.data[i],
+                  functionCode: 2
+                });
+              }
+            }
+            break;
+        }
+        
+        // Small delay between batches to avoid overwhelming the device
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+      } catch (error) {
+        // Register not available or error reading - skip this range
+        logger.debug(`No response for ${type} registers ${addr}-${addr + readCount - 1}`);
+      }
+    }
+    
+    return discovered;
   }
 
   startPolling() {

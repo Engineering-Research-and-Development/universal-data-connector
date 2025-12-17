@@ -18,9 +18,12 @@ class MqttConnector extends BaseConnector {
     if (!config.broker) {
       throw new Error('MQTT connector requires a broker URL');
     }
-    if (!config.topics || !Array.isArray(config.topics) || config.topics.length === 0) {
-      throw new Error('MQTT connector requires at least one topic to subscribe to');
+    // Topics are optional - if empty, auto-discovery will be triggered
+    if (config.topics && !Array.isArray(config.topics)) {
+      throw new Error('MQTT topics must be an array');
     }
+    this.autoDiscovery = !config.topics || config.topics.length === 0;
+    this.discoveredTopics = [];
   }
 
   async initialize() {
@@ -61,8 +64,15 @@ class MqttConnector extends BaseConnector {
       // Wait for connection
       await this.waitForConnection();
       
-      // Subscribe to topics
-      await this.subscribeToTopics();
+      // If auto-discovery is enabled, discover topics
+      if (this.autoDiscovery) {
+        logger.info(`Auto-discovery enabled for MQTT connector '${this.id}'`);
+        await this.discoverTopics();
+        logger.info(`Auto-discovery completed. Use /api/sources/${this.id}/discovery to see discovered topics`);
+      } else {
+        // Subscribe to configured topics
+        await this.subscribeToTopics();
+      }
       
     } catch (error) {
       logger.error(`Failed to connect MQTT connector '${this.id}':`, error);
@@ -104,6 +114,73 @@ class MqttConnector extends BaseConnector {
       
     } catch (error) {
       logger.error(`Error during MQTT connector '${this.id}' cleanup:`, error);
+    }
+  }
+
+  /**
+   * Discover topics by subscribing to wildcard and logging received topics
+   * Note: This requires broker support for $SYS topics or wildcard subscriptions
+   */
+  async discoverTopics() {
+    try {
+      logger.info(`Starting topic discovery for MQTT connector '${this.id}'`);
+      
+      const discoveryTopics = new Set();
+      const discoveryTimeout = 10000; // 10 seconds discovery period
+      
+      // Subscribe to wildcard to capture all topics
+      const wildcardTopic = '#';
+      
+      const tempHandler = (topic, message) => {
+        // Filter out $SYS topics if not desired
+        if (!topic.startsWith('$SYS/')) {
+          discoveryTopics.add(topic);
+          logger.debug(`Discovered MQTT topic: ${topic}`);
+        }
+      };
+      
+      this.client.on('message', tempHandler);
+      
+      await new Promise((resolve, reject) => {
+        this.client.subscribe(wildcardTopic, { qos: 0 }, (error) => {
+          if (error) {
+            reject(error);
+          } else {
+            logger.info(`Subscribed to wildcard for discovery on connector '${this.id}'`);
+            resolve();
+          }
+        });
+      });
+      
+      // Wait for discovery period
+      await new Promise(resolve => setTimeout(resolve, discoveryTimeout));
+      
+      // Unsubscribe from wildcard
+      await new Promise((resolve) => {
+        this.client.unsubscribe(wildcardTopic, () => resolve());
+      });
+      
+      this.client.removeListener('message', tempHandler);
+      
+      this.discoveredTopics = Array.from(discoveryTopics).map(topic => ({
+        topic,
+        discovered: new Date().toISOString()
+      }));
+      
+      logger.info(`Discovered ${this.discoveredTopics.length} topics for connector '${this.id}'`);
+      
+      // Emit discovery event
+      this.emit('topicsDiscovered', {
+        sourceId: this.id,
+        protocol: 'MQTT',
+        topics: this.discoveredTopics
+      });
+      
+      return this.discoveredTopics;
+      
+    } catch (error) {
+      logger.error(`Failed to discover topics for connector '${this.id}':`, error);
+      throw error;
     }
   }
 

@@ -31,9 +31,11 @@ class OpcUaConnector extends BaseConnector {
     if (!config.endpoint) {
       throw new Error('OPC UA connector requires an endpoint URL');
     }
-    if (!config.nodes || !Array.isArray(config.nodes) || config.nodes.length === 0) {
-      throw new Error('OPC UA connector requires at least one node to monitor');
+    // Nodes are optional - if empty, auto-discovery will be triggered
+    if (config.nodes && !Array.isArray(config.nodes)) {
+      throw new Error('OPC UA nodes must be an array');
     }
+    this.autoDiscovery = !config.nodes || config.nodes.length === 0;
   }
 
   async initialize() {
@@ -95,8 +97,16 @@ class OpcUaConnector extends BaseConnector {
       // Create subscription for monitoring data changes
       await this.createSubscription();
       
-      // Monitor configured nodes
-      await this.monitorNodes();
+      // If auto-discovery is enabled, discover nodes
+      if (this.autoDiscovery) {
+        logger.info(`Auto-discovery enabled for connector '${this.id}'`);
+        const discoveredNodes = await this.discoverNodes();
+        logger.info(`Auto-discovery completed. Use /api/sources/${this.id}/discovery to see discovered nodes`);
+        this.discoveredNodes = discoveredNodes;
+      } else {
+        // Monitor configured nodes
+        await this.monitorNodes();
+      }
       
       this.onConnected();
       
@@ -158,6 +168,85 @@ class OpcUaConnector extends BaseConnector {
       
     } catch (error) {
       logger.error(`Error during OPC UA connector '${this.id}' cleanup:`, error);
+    }
+  }
+
+  /**
+   * Browse and discover available nodes
+   * Returns discovered nodes that can be used for mapping
+   */
+  async discoverNodes() {
+    if (!this.session) {
+      throw new Error('Cannot discover nodes: no active session');
+    }
+
+    try {
+      logger.info(`Starting node discovery for OPC UA connector '${this.id}'`);
+      
+      const discoveredNodes = [];
+      const rootNodeId = 'ns=0;i=85'; // Objects folder
+      
+      await this.browseNode(rootNodeId, discoveredNodes, 0, 3); // Max depth 3
+      
+      logger.info(`Discovered ${discoveredNodes.length} nodes for connector '${this.id}'`);
+      
+      // Emit discovery event for mapping tools
+      this.emit('nodesDiscovered', {
+        sourceId: this.id,
+        protocol: 'OPC-UA',
+        nodes: discoveredNodes
+      });
+      
+      return discoveredNodes;
+      
+    } catch (error) {
+      logger.error(`Failed to discover nodes for connector '${this.id}':`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Recursively browse OPC UA address space
+   */
+  async browseNode(nodeId, discoveredNodes, currentDepth, maxDepth) {
+    if (currentDepth >= maxDepth) {
+      return;
+    }
+
+    try {
+      const browseResult = await this.session.browse(nodeId);
+      
+      for (const reference of browseResult.references) {
+        const node = {
+          nodeId: reference.nodeId.toString(),
+          browseName: reference.browseName.name,
+          displayName: reference.displayName?.text || reference.browseName.name,
+          nodeClass: reference.nodeClass,
+          depth: currentDepth + 1
+        };
+
+        // If it's a variable node, get additional info
+        if (reference.nodeClass === 2) { // Variable
+          try {
+            const dataValue = await this.session.read({
+              nodeId: reference.nodeId,
+              attributeId: AttributeIds.DataType
+            });
+            node.dataType = dataValue.value?.value?.toString();
+          } catch (error) {
+            // Continue without datatype info
+          }
+        }
+
+        discoveredNodes.push(node);
+
+        // Continue browsing if it's an Object or has children
+        if (reference.nodeClass === 1 || reference.isForward) {
+          await this.browseNode(reference.nodeId, discoveredNodes, currentDepth + 1, maxDepth);
+        }
+      }
+    } catch (error) {
+      logger.debug(`Error browsing node ${nodeId}:`, error.message);
     }
   }
 

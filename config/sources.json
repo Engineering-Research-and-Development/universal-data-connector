@@ -6,7 +6,7 @@
       "name": "PLC Line 1",
       "enabled": true,
       "config": {
-        "endpoint": "opc.tcp://192.168.1.100:4840",
+        "endpoint": "opc.tcp://127.0.0.1:4840",
         "nodes": [
           "ns=2;s=Temperature",
           "ns=2;s=Pressure",
@@ -23,7 +23,7 @@
       "id": "sensor-mqtt",
       "type": "mqtt",
       "name": "MQTT Sensors",
-      "enabled": true,
+      "enabled": false,
       "config": {
         "broker": "mqtt://192.168.1.200:1883",
         "topics": [

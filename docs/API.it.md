@@ -85,6 +85,144 @@ Get latest data points from a specific source.
 **Query Parameters:**
 - `limit` (optional): Number of data points to return (default: 100)
 
+#### GET /api/sources/:id/discovery
+Ottieni gli elementi auto-scoperti (nodi, topic o registri) da un connettore source.
+
+**Requisiti:**
+- La source deve essere configurata in modalità auto-discovery (array nodes/topics/registers vuoto)
+- La source deve essere connessa e il processo di discovery completato
+
+**Esempi di Response:**
+
+Connettore OPC UA:
+```json
+{
+  "sourceId": "plc-001",
+  "protocol": "OPC-UA",
+  "discoveredNodes": [
+    {
+      "nodeId": "ns=2;s=Temperature",
+      "browseName": "Temperature",
+      "displayName": "Sensore Temperatura",
+      "nodeClass": "Variable",
+      "dataType": "Double"
+    },
+    {
+      "nodeId": "ns=2;s=Pressure",
+      "browseName": "Pressure",
+      "displayName": "Sensore Pressione",
+      "nodeClass": "Variable",
+      "dataType": "Double"
+    }
+  ]
+}
+```
+
+Connettore MQTT:
+```json
+{
+  "sourceId": "iot-sensors",
+  "protocol": "MQTT",
+  "discoveredTopics": [
+    "sensors/temp/room1",
+    "sensors/humidity/room1",
+    "machines/status/line1"
+  ]
+}
+```
+
+Connettore Modbus:
+```json
+{
+  "sourceId": "modbus-plc",
+  "protocol": "Modbus",
+  "discoveredRegisters": [
+    {
+      "address": 0,
+      "type": "HoldingRegister",
+      "name": "HR_0",
+      "value": 234,
+      "functionCode": 3
+    },
+    {
+      "address": 1,
+      "type": "HoldingRegister",
+      "name": "HR_1",
+      "value": 567,
+      "functionCode": 3
+    },
+    {
+      "address": 0,
+      "type": "InputRegister",
+      "name": "IR_0",
+      "value": 123,
+      "functionCode": 4
+    }
+  ]
+}
+```
+
+#### POST /api/sources/:id/configure
+Configura gli elementi scoperti e attiva il monitoraggio per un connettore source.
+
+**Request Body:**
+
+OPC UA:
+```json
+{
+  "nodes": [
+    "ns=2;s=Temperature",
+    "ns=2;s=Pressure"
+  ]
+}
+```
+
+MQTT:
+```json
+{
+  "topics": [
+    "sensors/+/temperature",
+    "machines/+/status"
+  ]
+}
+```
+
+Modbus:
+```json
+{
+  "registers": [
+    {
+      "address": 0,
+      "type": "HoldingRegister",
+      "name": "Temperature",
+      "scale": 0.1
+    },
+    {
+      "address": 10,
+      "type": "InputRegister",
+      "name": "Pressure"
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Configurazione aggiornata e connettore riavviato",
+  "sourceId": "plc-001"
+}
+```
+
+**Workflow:**
+1. Configura la source con array nodes/topics/registers vuoto
+2. Avvia il connettore source
+3. Attendi che la discovery sia completata (verifica nei log o nello status)
+4. Chiama GET /api/sources/:id/discovery per visualizzare gli elementi scoperti
+5. Seleziona gli elementi desiderati e chiama POST /api/sources/:id/configure
+6. Il connettore si riavvia con la nuova configurazione e inizia il monitoraggio
+
 ### Data Endpoints
 
 #### GET /api/data/latest

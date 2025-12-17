@@ -85,9 +85,12 @@ Il file principale di configurazione si trova in `config/sources.json` e contien
 - `securityPolicy`: Politica di sicurezza
 - `securityMode`: Modalità di sicurezza
 - `username/password`: Credenziali opzionali
-- `nodes`: Array di node IDs da monitorare
+- `nodes`: Array di node IDs da monitorare (optional - triggers auto-discovery if empty)
 - `subscriptionOptions`: Opzioni per la subscription
 - `clientOptions`: Opzioni del client OPC UA
+
+**Auto-Discovery Mode:**
+If `nodes` array is empty or omitted, the connector will automatically browse the OPC UA address space and discover available nodes. You can then use the discovery API endpoints to view and configure discovered nodes.
 
 ### MQTT Sources
 
@@ -122,9 +125,12 @@ Il file principale di configurazione si trova in `config/sources.json` e contien
 - `broker`: URL del broker MQTT
 - `clientId`: ID client univoco
 - `username/password`: Credenziali del broker
-- `topics`: Array di topic da sottoscrivere (supporta wildcards)
+- `topics`: Array di topic da sottoscrivere (supporta wildcards) (optional - triggers auto-discovery if empty)
 - `qos`: Quality of Service level (0, 1, 2)
 - `options`: Opzioni aggiuntive del client MQTT
+
+**Auto-Discovery Mode:**
+If `topics` array is empty or omitted, the connector will subscribe to '#' wildcard topic for 10 seconds to discover all active topics on the broker. You can then use the discovery API endpoints to view and configure discovered topics.
 
 ### HTTP Sources
 
@@ -173,6 +179,84 @@ Il file principale di configurazione si trova in `config/sources.json` e contien
 - `timeout`: Timeout richiesta in millisecondi
 - `params`: Query parameters
 - `data`: Body della richiesta (per POST/PUT)
+
+### Modbus Sources
+
+```json
+{
+  "id": "modbus-plc",
+  "type": "modbus",
+  "enabled": true,
+  "name": "Modbus PLC",
+  "config": {
+    "transport": "tcp",
+    "host": "192.168.1.50",
+    "port": 502,
+    "unitId": 1,
+    "timeout": 5000,
+    "registers": [
+      {
+        "address": 0,
+        "type": "HoldingRegister",
+        "name": "Temperature",
+        "scale": 0.1
+      },
+      {
+        "address": 10,
+        "type": "InputRegister",
+        "name": "Pressure",
+        "scale": 1
+      },
+      {
+        "address": 100,
+        "type": "Coil",
+        "name": "MotorStatus"
+      }
+    ],
+    "polling": {
+      "enabled": true,
+      "interval": 1000
+    },
+    "discoveryRanges": {
+      "holdingRegisters": { "start": 0, "count": 100 },
+      "inputRegisters": { "start": 0, "count": 100 },
+      "coils": { "start": 0, "count": 100 },
+      "discreteInputs": { "start": 0, "count": 100 }
+    }
+  }
+}
+```
+
+**Parametri Modbus:**
+- `transport`: Tipo di trasporto ('tcp' o 'rtu')
+- `host`: Indirizzo IP del dispositivo Modbus TCP
+- `port`: Porta Modbus (default: 502)
+- `unitId`: ID unità Modbus (slave address)
+- `timeout`: Timeout richiesta in millisecondi
+- `registers`: Array di registri da leggere (optional - triggers auto-discovery if empty)
+  - `address`: Indirizzo del registro
+  - `type`: Tipo registro (HoldingRegister, InputRegister, Coil, DiscreteInput)
+  - `name`: Nome descrittivo
+  - `scale`: Fattore di scala (optional)
+- `polling`: Configurazione polling
+- `discoveryRanges`: Range di indirizzi per l'auto-discovery (optional)
+
+**Auto-Discovery Mode:**
+If `registers` array is empty or omitted, the connector will scan the configured address ranges for responsive registers across all function codes (Holding Registers, Input Registers, Coils, Discrete Inputs). The default ranges scan 100 addresses starting from 0 for each register type. You can customize these ranges with the `discoveryRanges` parameter. Use the discovery API endpoints to view discovered registers and configure which ones to monitor.
+
+**RTU Configuration (Serial):**
+For Modbus RTU over serial:
+```json
+{
+  "transport": "rtu",
+  "serialPort": "COM1",
+  "baudRate": 9600,
+  "dataBits": 8,
+  "stopBits": 1,
+  "parity": "none",
+  "unitId": 1
+}
+```
 
 ## Configurazione Retry
 
