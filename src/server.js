@@ -17,32 +17,61 @@ class UniversalDataConnector {
     this.server = null;
     this.wsServer = null;
     this.engine = null;
+    this.dataCounter = 0;
     this.port = process.env.PORT || 3000;
     this.wsPort = process.env.WS_PORT || 3001;
     this.storageConfig = storageConfig;
   }
 
+  /* async initialize() {
+     try {
+       // Setup Express middleware
+       this.setupMiddleware();
+ 
+       // Setup routes
+       this.setupRoutes();
+ 
+       // Initialize configuration
+       await configManager.initialize();
+ 
+       // Initialize data connector engine
+       this.engine = new DataConnectorEngine(this.storageConfig);
+       await this.engine.initialize();
+ 
+       // Initialize mapping routes with engine instance
+       mappingRoutes.initialize(this.engine);
+ 
+       // Setup WebSocket server for real-time data
+       this.setupWebSocket();
+ 
+       logger.info('Universal Data Connector initialized successfully');
+     } catch (error) {
+       logger.error('Failed to initialize Universal Data Connector:', error);
+       throw error;
+     }
+   }
+ */
   async initialize() {
     try {
       // Setup Express middleware
       this.setupMiddleware();
-      
-      // Setup routes
-      this.setupRoutes();
-      
+
       // Initialize configuration
       await configManager.initialize();
-      
+
       // Initialize data connector engine
       this.engine = new DataConnectorEngine(this.storageConfig);
       await this.engine.initialize();
-      
-      // Initialize mapping routes with engine instance
+
+      // Initialize mapping routes with engine instance PRIMA di setup routes
       mappingRoutes.initialize(this.engine);
-      
+
+      // Setup routes DOPO l'inizializzazione
+      this.setupRoutes();
+
       // Setup WebSocket server for real-time data
       this.setupWebSocket();
-      
+
       logger.info('Universal Data Connector initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize Universal Data Connector:', error);
@@ -55,12 +84,12 @@ class UniversalDataConnector {
     this.app.use(cors());
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
-    
+
     // Request logging
     this.app.use((req, res, next) => {
-      logger.debug(`${req.method} ${req.path}`, { 
-        ip: req.ip, 
-        userAgent: req.get('User-Agent') 
+      logger.debug(`${req.method} ${req.path}`, {
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
       });
       next();
     });
@@ -69,27 +98,27 @@ class UniversalDataConnector {
   setupRoutes() {
     // Make server instance available to routes
     this.app.set('serverInstance', this);
-    
+
     // Health check endpoint
     this.app.get('/health', (req, res) => {
-      res.json({ 
-        status: 'healthy', 
+      res.json({
+        status: 'healthy',
         timestamp: new Date().toISOString(),
         uptime: process.uptime()
       });
     });
-    
+
     // API routes
     this.app.use('/api', apiRoutes);
-    
+
     // 404 handler
     this.app.use('*', (req, res) => {
-      res.status(404).json({ 
+      res.status(404).json({
         error: 'Not Found',
         message: 'The requested endpoint does not exist'
       });
     });
-    
+
     // Global error handler
     this.app.use((error, req, res, next) => {
       logger.error('Unhandled error:', error);
@@ -102,10 +131,10 @@ class UniversalDataConnector {
 
   setupWebSocket() {
     this.wsServer = new WebSocket.Server({ port: this.wsPort });
-    
+
     this.wsServer.on('connection', (ws) => {
       logger.info('WebSocket client connected');
-      
+
       ws.on('message', (message) => {
         try {
           const data = JSON.parse(message);
@@ -121,8 +150,8 @@ class UniversalDataConnector {
       });
 
       // Send welcome message
-      ws.send(JSON.stringify({ 
-        type: 'welcome', 
+      ws.send(JSON.stringify({
+        type: 'welcome',
         message: 'Connected to Universal Data Connector',
         timestamp: new Date().toISOString()
       }));
@@ -130,7 +159,37 @@ class UniversalDataConnector {
 
     // Subscribe to engine data events
     if (this.engine) {
+      /* this.engine.on('data', (data) => {
+        this.broadcastToWebSocketClients({
+          type: 'data',
+          payload: data,
+          timestamp: new Date().toISOString()
+        });
+      }); */
+
+      /* this.engine.on('sourceStatusChanged', (sourceId, status) => {
+        this.broadcastToWebSocketClients({
+          type: 'sourceStatus',
+          sourceId,
+          status,
+          timestamp: new Date().toISOString()
+        });
+      }); */
+
       this.engine.on('data', (data) => {
+        // 🎯 STAMPA FINALE DATI MAPPATI A VIDEO
+        this.dataCounter++;
+        console.log('\n' + '='.repeat(80));
+        console.log(`📊 DATI MAPPATI #${this.dataCounter} - ${new Date().toISOString()}`);
+        console.log('='.repeat(80));
+        console.log(`🔹 Sorgente: ${data.sourceId}`);
+        console.log(`🔹 Timestamp: ${data.timestamp}`);
+        console.log(`\n📥 DATI ORIGINALI ( ${data.sourceId} ):`);
+        console.log(JSON.stringify(data.originalData, null, 2));
+        console.log('\n✅ DATI MAPPATI:');
+        console.log(JSON.stringify(data.mappedData, null, 2));
+        console.log('='.repeat(80) + '\n');
+
         this.broadcastToWebSocketClients({
           type: 'data',
           payload: data,
@@ -139,6 +198,8 @@ class UniversalDataConnector {
       });
 
       this.engine.on('sourceStatusChanged', (sourceId, status) => {
+        logger.info(`🔄 Cambio stato sorgente '${sourceId}': ${status}`);
+
         this.broadcastToWebSocketClients({
           type: 'sourceStatus',
           sourceId,
@@ -160,7 +221,7 @@ class UniversalDataConnector {
           ws.subscriptions.push(data.sourceId);
         }
         break;
-        
+
       case 'unsubscribe':
         ws.subscriptions = ws.subscriptions || [];
         const index = ws.subscriptions.indexOf(data.sourceId);
@@ -168,7 +229,7 @@ class UniversalDataConnector {
           ws.subscriptions.splice(index, 1);
         }
         break;
-        
+
       default:
         ws.send(JSON.stringify({ error: 'Unknown message type' }));
     }
@@ -198,8 +259,8 @@ class UniversalDataConnector {
     this.wsServer.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         // Check if client is subscribed to this source
-        if (!message.sourceId || !client.subscriptions || 
-            client.subscriptions.includes(message.sourceId)) {
+        if (!message.sourceId || !client.subscriptions ||
+          client.subscriptions.includes(message.sourceId)) {
           client.send(JSON.stringify(message));
         }
       }
@@ -209,18 +270,31 @@ class UniversalDataConnector {
   async start() {
     try {
       await this.initialize();
-      
-      this.server = this.app.listen(this.port, () => {
+
+      /* this.server = this.app.listen(this.port, () => {
         logger.info(`Universal Data Connector API server listening on port ${this.port}`);
         logger.info('Available endpoints:');
         logger.info(`  Health Check: http://localhost:${this.port}/health`);
         logger.info(`  API Base: http://localhost:${this.port}/api`);
         logger.info(`  WebSocket: ws://localhost:${this.wsPort}`);
+      }); */
+      this.server = this.app.listen(this.port, () => {
+        console.log('\n' + '█'.repeat(80));
+        console.log('  🚀 UNIVERSAL DATA CONNECTOR - AVVIATO');
+        console.log('█'.repeat(80));
+        logger.info(`Universal Data Connector API server listening on port ${this.port}`);
+        logger.info('Available endpoints:');
+        logger.info(`  Health Check: http://localhost:${this.port}/health`);
+        logger.info(`  API Base: http://localhost:${this.port}/api`);
+        logger.info(`  WebSocket: ws://localhost:${this.wsPort}`);
+        console.log('█'.repeat(80));
+        console.log('  📡 Server OPC UA: opc.tcp://FRLOPICCW1.italy.itroot.adnet:4840/cartif');
+        console.log('  🎯 In attesa di dati dal server OPC UA...');
+        console.log('█'.repeat(80) + '\n');
       });
-
       // Start the data connector engine
       await this.engine.start();
-      
+
       return this.server;
     } catch (error) {
       logger.error('Failed to start Universal Data Connector:', error);
@@ -230,20 +304,20 @@ class UniversalDataConnector {
 
   async stop() {
     logger.info('Stopping Universal Data Connector...');
-    
+
     try {
       if (this.engine) {
         await this.engine.stop();
       }
-      
+
       if (this.wsServer) {
         this.wsServer.close();
       }
-      
+
       if (this.server) {
         this.server.close();
       }
-      
+
       logger.info('Universal Data Connector stopped successfully');
     } catch (error) {
       logger.error('Error stopping Universal Data Connector:', error);
@@ -277,7 +351,7 @@ process.on('SIGINT', async () => {
 if (require.main === module) {
   const connector = new UniversalDataConnector();
   global.connector = connector;
-  
+
   connector.start().catch((error) => {
     logger.error('Failed to start connector:', error);
     process.exit(1);

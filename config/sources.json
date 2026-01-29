@@ -1,61 +1,37 @@
 {
   "sources": [
     {
-      "id": "plc-line1",
-      "type": "opcua",
-      "name": "PLC Line 1",
+      "id": "modbus-server-local",
+      "name": "Modbus TCP Server Local",
+      "type": "modbus",
       "enabled": true,
+      "autoMapping": true,
       "config": {
-        "endpoint": "opc.tcp://127.0.0.1:4840",
-        "nodes": [
-          "ns=2;s=Temperature",
-          "ns=2;s=Pressure",
-          "ns=2;s=FlowRate"
-        ],
-        "interval": 1000,
-        "security": {
-          "mode": "None",
-          "policy": "None"
+        "connectionType": "tcp",
+        "host": "127.0.0.1",
+        "port": 502,
+        "unitId": 1,
+        "timeout": 10000,
+        "discoveryRanges": {
+          "holdingRegisters": {
+            "start": 0,
+            "count": 15
+          },
+          "inputRegisters": {
+            "start": 0,
+            "count": 15
+          },
+          "coils": {
+            "start": 0,
+            "count": 10
+          },
+          "discreteInputs": {
+            "start": 0,
+            "count": 10
+          }
         }
-      }
-    },
-    {
-      "id": "sensor-mqtt",
-      "type": "mqtt",
-      "name": "MQTT Sensors",
-      "enabled": false,
-      "config": {
-        "broker": "mqtt://192.168.1.200:1883",
-        "topics": [
-          "sensors/temperature/+",
-          "sensors/humidity/+",
-          "alerts/+/critical"
-        ],
-        "qos": 1,
-        "auth": {
-          "username": "",
-          "password": ""
-        }
-      }
-    },
-    {
-      "id": "api-weather",
-      "type": "http",
-      "name": "Weather API",
-      "enabled": false,
-      "config": {
-        "url": "https://api.openweathermap.org/data/2.5/weather",
-        "method": "GET",
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "params": {
-          "q": "Milan",
-          "appid": "your-api-key"
-        },
-        "interval": 300000,
-        "timeout": 10000
-      }
+      },
+      "pollInterval": 3000
     }
   ]
 }

@@ -5,33 +5,34 @@ const logger = require('../../utils/logger');
 class MqttConnector extends BaseConnector {
   constructor(config) {
     super(config);
+    
     this.client = null;
-    this.subscribedTopics = new Set();
-    
-    this.validateConfig();
+    this.isConnected = false;
+    this.previousData = new Map(); // Store per rilevare cambiamenti
+    this.subscribedTopics = new Map(); // Map<topic, qos>
   }
 
-  validateConfig() {
-    super.validateConfig();
-    
-    const { config } = this.config;
-    if (!config.broker) {
-      throw new Error('MQTT connector requires a broker URL');
-    }
-    // Topics are optional - if empty, auto-discovery will be triggered
-    if (config.topics && !Array.isArray(config.topics)) {
-      throw new Error('MQTT topics must be an array');
-    }
-    this.autoDiscovery = !config.topics || config.topics.length === 0;
-    this.discoveredTopics = [];
-  }
+  /*  validateConfig() {
+     super.validateConfig();
+     
+     const { config } = this.config;
+     if (!config.broker) {
+       throw new Error('MQTT connector requires a broker URL');
+     }
+     // Topics are optional - if empty, auto-discovery will be triggered
+     if (config.topics && !Array.isArray(config.topics)) {
+       throw new Error('MQTT topics must be an array');
+     }
+     this.autoDiscovery = !config.topics || config.topics.length === 0;
+     this.discoveredTopics = [];
+   } */
 
-  async initialize() {
+  /* async initialize() {
     await super.initialize();
     logger.debug(`Initialized MQTT connector for broker: ${this.config.config.broker}`);
-  }
+  } */
 
-  async connect() {
+  /* async connect() {
     try {
       const { config } = this.config;
       
@@ -79,13 +80,13 @@ class MqttConnector extends BaseConnector {
       await this.cleanup();
       throw error;
     }
-  }
+  } */
 
-  async disconnect() {
-    await this.cleanup();
-  }
+  /*  async disconnect() {
+     await this.cleanup();
+   } */
 
-  async cleanup() {
+  /* async cleanup() {
     try {
       if (this.client) {
         // Unsubscribe from all topics
@@ -115,13 +116,13 @@ class MqttConnector extends BaseConnector {
     } catch (error) {
       logger.error(`Error during MQTT connector '${this.id}' cleanup:`, error);
     }
-  }
+  } */
 
   /**
    * Discover topics by subscribing to wildcard and logging received topics
    * Note: This requires broker support for $SYS topics or wildcard subscriptions
    */
-  async discoverTopics() {
+  /* async discoverTopics() {
     try {
       logger.info(`Starting topic discovery for MQTT connector '${this.id}'`);
       
@@ -182,9 +183,9 @@ class MqttConnector extends BaseConnector {
       logger.error(`Failed to discover topics for connector '${this.id}':`, error);
       throw error;
     }
-  }
+  } */
 
-  setupEventHandlers() {
+  /* setupEventHandlers() {
     this.client.on('connect', () => {
       logger.info(`MQTT client '${this.id}' connected to broker`);
       this.onConnected();
@@ -221,9 +222,9 @@ class MqttConnector extends BaseConnector {
     this.client.on('packetreceive', (packet) => {
       logger.debug(`MQTT client '${this.id}' received packet`, { type: packet.cmd });
     });
-  }
+  } */
 
-  async waitForConnection() {
+  /* async waitForConnection() {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('MQTT connection timeout'));
@@ -239,9 +240,9 @@ class MqttConnector extends BaseConnector {
         reject(error);
       });
     });
-  }
+  } */
 
-  async subscribeToTopics() {
+  /* async subscribeToTopics() {
     const { config } = this.config;
     const qos = config.qos || 1;
 
@@ -253,126 +254,319 @@ class MqttConnector extends BaseConnector {
         // Continue with other topics
       }
     }
-  }
+  } */
 
-  async subscribeToTopic(topic, qos = 1) {
+  async subscribeToTopic(topic, qos = 0) {
+    if (!this.client || !this.isConnected) {
+      throw new Error('Client MQTT non connesso');
+    }
+    if (this.subscribedTopics.has(topic)) {
+      console.log(`⚠️ Già sottoscritto al topic: ${topic}`);
+      return;
+    }
+
     return new Promise((resolve, reject) => {
       this.client.subscribe(topic, { qos }, (error, granted) => {
         if (error) {
+          console.error(`❌ Errore sottoscrizione topic '${topic}':`, err.message);
           reject(error);
         } else {
-          this.subscribedTopics.add(topic);
-          logger.info(`MQTT connector '${this.id}' subscribed to topic '${topic}' with QoS ${granted[0].qos}`);
+          this.subscribedTopics.set(topic, qos);
+          console.log(`📥 Sottoscritto al topic: ${topic} (QoS: ${granted[0].qos})`);
           resolve(granted);
         }
       });
     });
   }
 
-  handleMessage(topic, message, packet) {
-    try {
-      let parsedMessage;
-      const messageStr = message.toString();
-
-      // Try to parse as JSON, fallback to string
-      try {
-        parsedMessage = JSON.parse(messageStr);
-      } catch (parseError) {
-        parsedMessage = messageStr;
-      }
-
-      const data = {
-        topic: topic,
-        message: parsedMessage,
-        qos: packet.qos,
-        retain: packet.retain,
-        dup: packet.dup,
-        messageId: packet.messageId,
-        timestamp: new Date().toISOString(),
-        raw: messageStr
-      };
-
-      this.onData(data);
-      
-    } catch (error) {
-      logger.error(`Error handling MQTT message on topic '${topic}' for connector '${this.id}':`, error);
-    }
-  }
-
-  async publish(topic, message, options = {}) {
+  async unsubscribeFromTopic(topic) {
     if (!this.client || !this.isConnected) {
-      throw new Error('MQTT client not connected');
+      throw new Error('Client MQTT non connesso');
     }
-
-    try {
-      const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
-      
-      return new Promise((resolve, reject) => {
-        this.client.publish(topic, messageStr, options, (error) => {
-          if (error) {
-            reject(error);
-          } else {
-            logger.debug(`MQTT connector '${this.id}' published message to topic '${topic}'`);
-            resolve();
-          }
-        });
-      });
-      
-    } catch (error) {
-      logger.error(`Failed to publish message to topic '${topic}' on connector '${this.id}':`, error);
-      throw error;
-    }
-  }
-
-  async addSubscription(topic, qos = 1) {
-    if (!this.client || !this.isConnected) {
-      throw new Error('MQTT client not connected');
-    }
-
-    if (this.subscribedTopics.has(topic)) {
-      logger.warn(`Already subscribed to topic '${topic}' on connector '${this.id}'`);
-      return;
-    }
-
-    await this.subscribeToTopic(topic, qos);
-  }
-
-  async removeSubscription(topic) {
-    if (!this.client || !this.isConnected) {
-      throw new Error('MQTT client not connected');
-    }
-
     if (!this.subscribedTopics.has(topic)) {
-      logger.warn(`Not subscribed to topic '${topic}' on connector '${this.id}'`);
+      console.log(`⚠️ Non sottoscritto al topic: ${topic}`);
       return;
     }
 
     return new Promise((resolve, reject) => {
-      this.client.unsubscribe(topic, (error) => {
-        if (error) {
-          reject(error);
+      this.client.unsubscribe(topic, (err) => {
+        if (err) {
+          console.error(`❌ Errore rimozione sottoscrizione topic '${topic}':`, err.message);
+          reject(err);
         } else {
           this.subscribedTopics.delete(topic);
-          logger.info(`MQTT connector '${this.id}' unsubscribed from topic '${topic}'`);
+          this.previousData.delete(topic);
+          console.log(`📤 Rimossa sottoscrizione dal topic: ${topic}`);
           resolve();
         }
       });
     });
   }
 
-  getStatus() {
-    return {
-      ...super.getStatus(),
-      broker: this.config.config.broker,
-      clientId: this.client?.options?.clientId,
-      subscribedTopics: Array.from(this.subscribedTopics),
-      subscriptionCount: this.subscribedTopics.size
+  async addSubscriptions(topics, qos = 0) {
+    if (!Array.isArray(topics)) {
+      topics = [topics];
+    }
+    if (!this.client || !this.isConnected) {
+      throw new Error('MQTT client not connected');
+    }
+    const results = {
+      success: [],
+      failed: []
     };
+
+    for (const topic of topics) {
+      try {
+        await this.subscribeToTopic(topic, qos);
+        results.success.push(topic);
+      } catch (error) {
+        results.failed.push({ topic, error: error.message });
+      }
+    }
+
+    console.log(`✅ Sottoscritti ${results.success.length}/${topics.length} topic`);
+    return results;
   }
 
-  getSubscribedTopics() {
-    return Array.from(this.subscribedTopics);
+  async removeSubscriptions(topics) {
+    if (!Array.isArray(topics)) {
+      topics = [topics];
+    }
+    const results = {
+      success: [],
+      failed: []
+    };
+
+    for (const topic of topics) {
+      try {
+        await this.unsubscribeFromTopic(topic);
+        results.success.push(topic);
+      } catch (error) {
+        results.failed.push({ topic, error: error.message });
+      }
+    }
+
+    console.log(`✅ Rimossi ${results.success.length}/${topics.length} topic`);
+    return results;
   }
+
+  async updateTopicQos(topic, newQos) {
+    if (![0, 1, 2].includes(newQos)) {
+      throw new Error('QoS deve essere 0, 1 o 2');
+    }
+    await this.unsubscribeFromTopic(topic);
+    await this.subscribeToTopic(topic, newQos);
+    console.log(`🔄 Aggiornato QoS del topic '${topic}' a ${newQos}`);
+  }
+
+  async unsubscribeAll() {
+    const topics = Array.from(this.subscribedTopics.keys());
+    if (topics.length === 0) {
+      console.log('⚠️ Nessun topic da rimuovere');
+      return;
+    }
+    await this.removeSubscriptions(topics);
+    console.log('✅ Tutte le sottoscrizioni rimosse');
+  }
+
+  isSubscribedTo(topic) {
+    return this.subscribedTopics.has(topic);
+  }
+
+  
+  getSubscribedTopics() {
+    return Array.from(this.subscribedTopics.entries()).map(([topic, qos]) => ({ topic, qos }));
+  }
+ 
+
+
+  async connect() {
+  return new Promise((resolve, reject) => {
+  try {
+      const brokerConfig = this.config.config || this.config;
+      console.log(`🔌 Connessione al broker MQTT: ${brokerConfig.broker}`);
+
+      const options = {
+        clientId: brokerConfig.clientId || `udc-mqtt-${Math.random().toString(16).substr(2, 8)}`,
+        clean: brokerConfig.clean !== false,
+        connectTimeout: brokerConfig.timeout || 30000,
+        reconnectPeriod: brokerConfig.reconnectPeriod || 5000
+      };
+
+      if (brokerConfig.auth && brokerConfig.auth.username) {
+        options.username = brokerConfig.auth.username;
+        options.password = brokerConfig.auth.password;
+      }
+
+      this.client = mqtt.connect(brokerConfig.broker, options);
+
+      this.client.on('connect', () => {
+        console.log('✅ Connesso al broker MQTT');
+        this.isConnected = true;
+        this.subscribeToTopics();
+        resolve();
+      });
+
+      this.client.on('error', (err) => {
+        console.error('❌ Errore MQTT:', err.message);
+        if (!this.isConnected) {
+          reject(err);
+        }
+      });
+
+      this.client.on('message', (topic, message) => {
+        this.handleMessage(topic, message);
+      });
+
+      this.client.on('close', () => {
+        console.log('🔌 Connessione MQTT chiusa');
+        this.isConnected = false;
+      });
+
+      this.client.on('reconnect', () => {
+        console.log('🔄 Riconnessione al broker MQTT...');
+      });
+
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+subscribeToTopics() {
+  const brokerConfig = this.config.config || this.config;
+  const topics = Array.isArray(brokerConfig.topics) ? brokerConfig.topics : [brokerConfig.topics];
+  const qos = brokerConfig.qos || 0;
+
+  topics.forEach(topic => {
+    this.subscribeToTopic(topic, qos).catch(err => {
+      console.error(`❌ Errore sottoscrizione topic '${topic}':`, err.message);
+    });
+  });
+}
+
+handleMessage(topic, message) {
+  try {
+    const brokerConfig = this.config.config || this.config;
+    const payload = message.toString();
+    let data;
+
+    try {
+      data = JSON.parse(payload);
+    } catch (e) {
+      data = { raw: payload };
+    }
+
+    // Rilevamento cambiamenti se abilitato
+    if (brokerConfig.detectChanges) {
+      const dataKey = topic;
+      const previousDataStr = this.previousData.get(dataKey);
+      const currentDataStr = JSON.stringify(data);
+
+      if (previousDataStr === currentDataStr) {
+        // Dati non cambiati, non emettere evento
+        return;
+      }
+
+      this.previousData.set(dataKey, currentDataStr);
+    }
+
+    // Auto-mapping se abilitato
+    if (brokerConfig.autoMapping) {
+      const mappedData = this.autoMapData(data, topic);
+
+      console.log('\n📊 Dati ricevuti e mappati:');
+      console.log('━'.repeat(50));
+      console.log(`Topic: ${topic}`);
+      console.log(`Timestamp: ${new Date().toISOString()}`);
+      console.log('Dati:');
+      console.log(JSON.stringify(mappedData, null, 2));
+      console.log('━'.repeat(50) + '\n');
+
+      this.emit('data', {
+        topic,
+        data: mappedData,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      console.log(`📨 Messaggio ricevuto su '${topic}':`, data);
+      this.emit('data', { topic, data, timestamp: new Date().toISOString() });
+    }
+
+  } catch (error) {
+    console.error('❌ Errore elaborazione messaggio:', error.message);
+    this.emit('error', error);
+  }
+}
+
+autoMapData(data, topic) {
+  const mapped = {
+    source: {
+      type: 'mqtt',
+      topic: topic,
+      timestamp: new Date().toISOString()
+    },
+    data: {}
+  };
+
+  // Mappa automaticamente tutti i campi
+  Object.keys(data).forEach(key => {
+    const value = data[key];
+    const type = typeof value;
+
+    mapped.data[key] = {
+      value: value,
+      type: type,
+      dataType: this.detectDataType(value)
+    };
+  });
+
+  return mapped;
+}
+
+detectDataType(value) {
+  if (typeof value === 'boolean') return 'Boolean';
+  if (typeof value === 'number') {
+    return Number.isInteger(value) ? 'Integer' : 'Float';
+  }
+  if (typeof value === 'string') return 'String';
+  if (value === null) return 'Null';
+  if (typeof value === 'object') return 'Object';
+  return 'Unknown';
+}
+
+getStatus() {
+  const brokerConfig = this.config.config || this.config;
+  return {
+    ...super.getStatus(),
+    connected: this.isConnected,
+    broker: brokerConfig.broker,
+    clientId: this.client?.options?.clientId || null,
+    subscribedTopics: this.getSubscribedTopics(),
+    topicCount: this.subscribedTopics.size,
+    autoMapping: brokerConfig.autoMapping || false,
+    detectChanges: brokerConfig.detectChanges || false
+  };
+}
+
+  async disconnect() {
+  if (this.client) {
+    return new Promise((resolve) => {
+      this.client.end(false, () => {
+        console.log('✅ Disconnesso dal broker MQTT');
+        this.isConnected = false;
+        this.subscribedTopics.clear();
+        this.previousData.clear();
+        resolve();
+      });
+    });
+  }
+}
+
+  async read() {
+  // MQTT è event-driven, non necessita di polling
+  return null;
+}
 }
 
 module.exports = MqttConnector;

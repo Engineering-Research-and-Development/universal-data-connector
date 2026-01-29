@@ -1,0 +1,74 @@
+{
+  "sources": [
+    {
+      "id": "cartif-opcua-server",
+      "type": "opcua",
+      "name": "CARTIF_OPC_UA_Server",
+      "enabled": true,
+      "config": {
+        "endpoint": "opc.tcp://localhost:4840/cartif",
+        "rootNode": "ns=4;i=1",
+        "autoMapping": true,
+        "interval": 1000,
+        "security": {
+          "mode": "None",
+          "policy": "None"
+        }
+      }
+    },
+    {
+      "id": "sensor-mqtt",
+      "type": "mqtt",
+      "name": "MQTT Sensors",
+      "enabled": true,
+      "config": {
+        "broker": "mqtt://localhost:1883",
+        "topics": [
+          "sensori/dati"
+        ],
+        "qos": 1,
+        "autoMapping": true,
+        "detectChanges": true,
+        "auth": {
+          "username": "",
+          "password": ""
+        }
+      }
+    },
+    {
+      "id": "api-weather",
+      "type": "http",
+      "name": "Weather API",
+      "enabled": false,
+      "config": {
+        "url": "https://api.openweathermap.org/data/2.5/weather",
+        "method": "GET",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": {
+          "q": "Milan",
+          "appid": "your-api-key"
+        },
+        "interval": 300000,
+        "timeout": 10000
+      }
+    },
+    {
+      "id": "modbus-server-local",
+      "name": "Modbus TCP Server Local",
+      "type": "modbus",
+      "enabled": true,
+      "config": {
+        "host": "127.0.0.1",
+        "port": 502,
+        "unitId": 1,
+        "timeout": 5000,
+        "retryDelay": 3000
+      },
+      "tags": [
+      ],
+      "pollInterval": 1000
+    }
+  ]
+}

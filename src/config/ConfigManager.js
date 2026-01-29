@@ -8,11 +8,24 @@ const sourceConfigSchema = Joi.object({
   sources: Joi.array().items(
     Joi.object({
       id: Joi.string().required(),
-      type: Joi.string().valid('opcua', 'mqtt', 'http').required(),
+      type: Joi.string().valid('opcua', 'mqtt', 'http', 'modbus').required(),
       enabled: Joi.boolean().default(true),
       name: Joi.string().optional(),
       description: Joi.string().optional(),
       config: Joi.object().required(),
+      tags: Joi.array().items(
+        Joi.object({
+          name: Joi.string().required(),
+          address: Joi.string().required(),
+          dataType: Joi.string().valid('int16', 'uint16', 'int32', 'uint32', 'float', 'double', 'boolean', 'string').required(),
+          writable: Joi.boolean().default(false),
+          description: Joi.string().optional(),
+          scale: Joi.number().optional(),
+          offset: Joi.number().optional(),
+          unit: Joi.string().optional()
+        })
+      ).optional(),
+      pollInterval: Joi.number().integer().min(100).optional(),
       retryConfig: Joi.object({
         enabled: Joi.boolean().default(true),
         maxRetries: Joi.number().integer().min(0).default(3),
@@ -22,7 +35,8 @@ const sourceConfigSchema = Joi.object({
         enabled: Joi.boolean().default(true),
         transforms: Joi.array().items(Joi.string()).default([]),
         validation: Joi.object().optional()
-      }).default()
+      }).default(),
+      autoMapping: Joi.boolean().default(false)
     })
   ).required()
 });
@@ -39,10 +53,10 @@ class ConfigManager {
     try {
       // Create config directory if it doesn't exist
       await this.ensureConfigDirectory();
-      
+
       // Load or create default sources configuration
       await this.loadSourcesConfig();
-      
+
       this.initialized = true;
       logger.info('Configuration manager initialized successfully');
     } catch (error) {
@@ -64,20 +78,20 @@ class ConfigManager {
     try {
       // Check if sources config file exists
       await fs.access(this.sourcesConfigFile);
-      
+
       // Read and parse the configuration
       const configData = await fs.readFile(this.sourcesConfigFile, 'utf8');
       const config = JSON.parse(configData);
-      
+
       // Validate configuration
       const { error, value } = sourceConfigSchema.validate(config);
       if (error) {
         throw new Error(`Invalid configuration: ${error.details[0].message}`);
       }
-      
+
       this.sources = value.sources;
       logger.info(`Loaded ${this.sources.length} source configurations`);
-      
+
     } catch (error) {
       if (error.code === 'ENOENT') {
         // File doesn't exist, create default configuration
@@ -169,11 +183,11 @@ class ConfigManager {
     };
 
     await fs.writeFile(
-      this.sourcesConfigFile, 
-      JSON.stringify(defaultConfig, null, 2), 
+      this.sourcesConfigFile,
+      JSON.stringify(defaultConfig, null, 2),
       'utf8'
     );
-    
+
     this.sources = defaultConfig.sources;
     logger.info('Created default sources configuration');
   }
@@ -202,7 +216,7 @@ class ConfigManager {
 
     // Merge updates with existing source
     const updatedSource = { ...this.sources[sourceIndex], ...updates };
-    
+
     // Validate updated source
     const { error } = sourceConfigSchema.validate({ sources: [updatedSource] });
     if (error) {
@@ -210,10 +224,10 @@ class ConfigManager {
     }
 
     this.sources[sourceIndex] = updatedSource;
-    
+
     // Save to file
     await this.saveSourcesConfig();
-    
+
     logger.info(`Updated source configuration: ${id}`);
     return updatedSource;
   }
@@ -231,10 +245,10 @@ class ConfigManager {
     }
 
     this.sources.push(sourceConfig);
-    
+
     // Save to file
     await this.saveSourcesConfig();
-    
+
     logger.info(`Added new source configuration: ${sourceConfig.id}`);
     return sourceConfig;
   }
@@ -246,10 +260,10 @@ class ConfigManager {
     }
 
     const removedSource = this.sources.splice(sourceIndex, 1)[0];
-    
+
     // Save to file
     await this.saveSourcesConfig();
-    
+
     logger.info(`Removed source configuration: ${id}`);
     return removedSource;
   }
@@ -257,8 +271,8 @@ class ConfigManager {
   async saveSourcesConfig() {
     const config = { sources: this.sources };
     await fs.writeFile(
-      this.sourcesConfigFile, 
-      JSON.stringify(config, null, 2), 
+      this.sourcesConfigFile,
+      JSON.stringify(config, null, 2),
       'utf8'
     );
   }

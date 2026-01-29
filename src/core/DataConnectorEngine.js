@@ -6,6 +6,8 @@ const DataProcessor = require('./DataProcessor');
 const DataStore = require('./DataStore');
 const { MappingEngine } = require('../mappingTools');
 
+//const MappingEngine = require('../mappingTools/MappingEngine');
+
 class DataConnectorEngine extends EventEmitter {
   constructor(storageConfig = null, mappingConfig = null) {
     super();
@@ -27,27 +29,27 @@ class DataConnectorEngine extends EventEmitter {
   async initialize() {
     try {
       logger.info('Initializing Data Connector Engine...');
-      
+
       // Initialize data processor
       await this.dataProcessor.initialize();
-      
+
       // Initialize data store
       await this.dataStore.initialize();
-      
+
       // Setup data processor event handlers
       this.dataProcessor.on('processed', (data) => {
         this.handleProcessedData(data);
       });
-      
+
       this.dataProcessor.on('error', (error) => {
         logger.error('Data processor error:', error);
         this.stats.totalErrors++;
         this.emit('processingError', error);
       });
-      
+
       // Load and initialize connectors
       await this.initializeConnectors();
-      
+
       logger.info('Data Connector Engine initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize Data Connector Engine:', error);
@@ -57,9 +59,9 @@ class DataConnectorEngine extends EventEmitter {
 
   async initializeConnectors() {
     const sources = configManager.getEnabledSources();
-    
+
     logger.info(`Initializing ${sources.length} connectors...`);
-    
+
     for (const sourceConfig of sources) {
       try {
         await this.createConnector(sourceConfig);
@@ -74,13 +76,13 @@ class DataConnectorEngine extends EventEmitter {
     try {
       // Create connector instance
       const connector = ConnectorFactory.create(sourceConfig.type, sourceConfig);
-      
+
       // Setup event handlers
       this.setupConnectorEventHandlers(connector, sourceConfig.id);
-      
+
       // Initialize connector
       await connector.initialize();
-      
+
       // Store connector
       this.connectors.set(sourceConfig.id, {
         connector,
@@ -93,10 +95,10 @@ class DataConnectorEngine extends EventEmitter {
           connections: 0
         }
       });
-      
+
       logger.info(`Connector '${sourceConfig.id}' (${sourceConfig.type}) initialized successfully`);
       this.emit('connectorInitialized', sourceConfig.id);
-      
+
     } catch (error) {
       logger.error(`Failed to create connector '${sourceConfig.id}':`, error);
       throw error;
@@ -107,7 +109,7 @@ class DataConnectorEngine extends EventEmitter {
   async reloadSourcesConfiguration(newSources = null) {
     try {
       logger.info('Reloading sources configuration...');
-      
+
       // Save new sources configuration if provided
       if (newSources) {
         const config = { sources: newSources };
@@ -118,27 +120,27 @@ class DataConnectorEngine extends EventEmitter {
         configManager.loadConfig();
         logger.info('Sources configuration reloaded from file');
       }
-      
+
       // Get current enabled sources
       const enabledSources = configManager.getEnabledSources();
       const currentConnectorIds = Array.from(this.connectors.keys());
       const newConnectorIds = enabledSources.map(s => s.id);
-      
+
       // Stop and remove connectors that are no longer configured
       for (const connectorId of currentConnectorIds) {
         if (!newConnectorIds.includes(connectorId)) {
           await this.removeConnector(connectorId);
         }
       }
-      
+
       // Update or create connectors
       for (const sourceConfig of enabledSources) {
         const existingConnector = this.connectors.get(sourceConfig.id);
-        
+
         if (existingConnector) {
           // Check if configuration changed
           const configChanged = JSON.stringify(existingConnector.config) !== JSON.stringify(sourceConfig);
-          
+
           if (configChanged) {
             logger.info(`Updating connector '${sourceConfig.id}' due to configuration change`);
             await this.updateConnector(sourceConfig.id, sourceConfig);
@@ -147,19 +149,19 @@ class DataConnectorEngine extends EventEmitter {
           // Create new connector
           logger.info(`Creating new connector '${sourceConfig.id}'`);
           await this.createConnector(sourceConfig);
-          
+
           // Auto-start if engine is running
           if (this.isRunning) {
             await this.startConnector(sourceConfig.id);
           }
         }
       }
-      
+
       this.emit('sourcesConfigurationReloaded', {
         totalSources: enabledSources.length,
         activeConnectors: this.connectors.size
       });
-      
+
       logger.info('Sources configuration reloaded successfully');
       return {
         success: true,
@@ -167,7 +169,7 @@ class DataConnectorEngine extends EventEmitter {
         activeConnectors: this.connectors.size,
         message: 'Sources configuration reloaded successfully'
       };
-      
+
     } catch (error) {
       logger.error('Failed to reload sources configuration:', error);
       this.emit('sourcesConfigurationError', error);
@@ -181,27 +183,27 @@ class DataConnectorEngine extends EventEmitter {
       if (!existingConnector) {
         throw new Error(`Connector '${connectorId}' not found`);
       }
-      
+
       const wasRunning = existingConnector.status === 'connected';
-      
+
       // Stop existing connector
       if (wasRunning) {
         await this.stopConnector(connectorId);
       }
-      
+
       // Remove old connector
       await this.removeConnector(connectorId);
-      
+
       // Create new connector with updated config
       await this.createConnector(newConfig);
-      
+
       // Start if it was running before
       if (wasRunning) {
         await this.startConnector(connectorId);
       }
-      
+
       logger.info(`Connector '${connectorId}' updated successfully`);
-      
+
     } catch (error) {
       logger.error(`Failed to update connector '${connectorId}':`, error);
       throw error;
@@ -215,23 +217,23 @@ class DataConnectorEngine extends EventEmitter {
         logger.warn(`Connector '${connectorId}' not found for removal`);
         return;
       }
-      
+
       // Stop connector if running
       if (connectorInfo.status === 'connected') {
         await this.stopConnector(connectorId);
       }
-      
+
       // Cleanup connector
       if (connectorInfo.connector && typeof connectorInfo.connector.cleanup === 'function') {
         await connectorInfo.connector.cleanup();
       }
-      
+
       // Remove from map
       this.connectors.delete(connectorId);
-      
+
       logger.info(`Connector '${connectorId}' removed successfully`);
       this.emit('connectorRemoved', connectorId);
-      
+
     } catch (error) {
       logger.error(`Failed to remove connector '${connectorId}':`, error);
       throw error;
@@ -241,22 +243,22 @@ class DataConnectorEngine extends EventEmitter {
   async reloadStorageConfiguration(newStorageConfig = null) {
     try {
       logger.info('Reloading storage configuration...');
-      
+
       // Save new storage configuration if provided
       if (newStorageConfig) {
         const StorageConfigManager = require('../config/StorageConfigManager');
         await StorageConfigManager.updateStorageConfig(newStorageConfig);
         logger.info('New storage configuration saved');
       }
-      
+
       // Backup current data if needed
       const currentData = await this.dataStore.getAll();
       logger.info(`Backing up ${currentData.length} data points`);
-      
+
       // Reinitialize data store with new configuration
       this.dataStore = new DataStore(newStorageConfig);
       await this.dataStore.initialize();
-      
+
       // Restore data if any
       if (currentData.length > 0) {
         logger.info(`Restoring ${currentData.length} data points to new storage`);
@@ -264,12 +266,12 @@ class DataConnectorEngine extends EventEmitter {
           await this.dataStore.store(dataPoint);
         }
       }
-      
+
       this.emit('storageConfigurationReloaded', {
         storageType: newStorageConfig?.type || 'memory',
         restoredDataPoints: currentData.length
       });
-      
+
       logger.info('Storage configuration reloaded successfully');
       return {
         success: true,
@@ -277,7 +279,7 @@ class DataConnectorEngine extends EventEmitter {
         restoredDataPoints: currentData.length,
         message: 'Storage configuration reloaded successfully'
       };
-      
+
     } catch (error) {
       logger.error('Failed to reload storage configuration:', error);
       this.emit('storageConfigurationError', error);
@@ -310,6 +312,57 @@ class DataConnectorEngine extends EventEmitter {
     });
   }
 
+  async handleIncomingData(sourceId, data) {
+    try {
+      // 📊 LOG 1: Dati grezzi ricevuti dalla sorgente
+      logger.info(`📥 DATI RICEVUTI da sorgente '${sourceId}':`);
+      logger.info(JSON.stringify(data, null, 2));
+
+      // Apply mapping transformations
+      const mappedData = await this.mappingEngine.applyMapping(sourceId, data);
+
+      if (mappedData) {
+        // 📊 LOG 2: Dati dopo il mapping
+        logger.info(`✅ DATI MAPPATI per sorgente '${sourceId}':`);
+        logger.info(JSON.stringify(mappedData, null, 2));
+
+        // 📊 LOG 3: Dettagli del mapping applicato
+        const mappingDetails = this.mappingEngine.getMappingForSource(sourceId);
+        if (mappingDetails) {
+          logger.info(`🔄 MAPPING APPLICATO per '${sourceId}':`);
+          logger.info(`   Target: ${mappingDetails.target.type}`);
+          logger.info(`   Regole: ${mappingDetails.mappings.length} mapping configurati`);
+          mappingDetails.mappings.forEach((mapping, idx) => {
+            logger.info(`   [${idx + 1}] ${mapping.sourceField} → ${mapping.targetField} (${mapping.transform || 'direct'})`);
+          });
+        }
+
+        // Emit mapped data event
+        this.emit('data', {
+          sourceId,
+          originalData: data,
+          mappedData,
+          timestamp: new Date().toISOString()
+        });
+
+        // Store data in configured storages
+        if (this.dataStore) {
+          await this.dataStore.store({
+            sourceId: sourceId,
+            timestamp: new Date().toISOString(),
+            data: mappedData
+          });
+        }
+      } else {
+        logger.debug(`No mapping configured for source '${sourceId}', data not processed`);
+      }
+
+    } catch (error) {
+      logger.error(`Error handling data from source '${sourceId}':`, error);
+      this.emit('dataError', sourceId, error);
+    }
+  }
+
   handleConnectorData(sourceId, data) {
     try {
       const connectorInfo = this.connectors.get(sourceId);
@@ -326,7 +379,18 @@ class DataConnectorEngine extends EventEmitter {
       this.stats.totalDataPoints++;
       this.stats.lastDataReceived = new Date();
 
-      // Enrich data with metadata
+      // 🔥 VERIFICA CHE MAPPING ENGINE SIA INIZIALIZZATO
+      if (!this.mappingEngine) {
+        logger.error('MappingEngine not initialized');
+        return;
+      }
+
+      // 🔥 AUTO-MAPPING: Crea automaticamente il mapping se non esiste
+      if (connectorInfo.config.autoMapping && !this.mappingEngine.getMapping(sourceId)) {
+        logger.info(`🔧 Creating automatic mapping for source '${sourceId}'...`);
+        this.createAutoMapping(sourceId, data, connectorInfo.config);
+      }
+      /* // Enrich data with metadata
       const enrichedData = {
         sourceId,
         sourceType: connectorInfo.config.type,
@@ -336,16 +400,16 @@ class DataConnectorEngine extends EventEmitter {
           sourceName: connectorInfo.config.name,
           sourceDescription: connectorInfo.config.description
         }
-      };
+      }; */
 
-      // Map data to Universal Data Model
+      /* // Map data to Universal Data Model
       try {
         const mappingContext = {
           sourceType: connectorInfo.config.type,
           entityId: `${sourceId}_entity`,
           entityType: connectorInfo.config.entityType
         };
-        
+
         this.mappingEngine.mapData(data, mappingContext);
         logger.debug(`Data from '${sourceId}' mapped to Universal Data Model`);
       } catch (mappingError) {
@@ -354,10 +418,12 @@ class DataConnectorEngine extends EventEmitter {
       }
 
       // Send to data processor
-      this.dataProcessor.process(enrichedData);
+      this.dataProcessor.process(enrichedData); */
+      // 🔄 CHIAMA IL METODO CON LOGGING
+      this.handleIncomingData(sourceId, data);
 
-      // Emit raw data event
-      this.emit('rawData', enrichedData);
+      /* // Emit raw data event
+      this.emit('rawData', enrichedData); */
 
     } catch (error) {
       logger.error(`Error handling data from connector '${sourceId}':`, error);
@@ -391,7 +457,7 @@ class DataConnectorEngine extends EventEmitter {
     }
 
     this.stats.totalErrors++;
-    
+
     logger.error(`Connector '${sourceId}' error:`, error);
     this.emit('connectorError', sourceId, error);
   }
@@ -402,21 +468,131 @@ class DataConnectorEngine extends EventEmitter {
       const oldStatus = connectorInfo.status;
       connectorInfo.status = status;
       connectorInfo.lastActivity = new Date();
-      
+
       if (status === 'connected') {
         connectorInfo.stats.connections++;
       }
-      
+
       if (oldStatus !== status) {
         this.emit('sourceStatusChanged', sourceId, status);
       }
     }
   }
 
+  createAutoMapping(sourceId, sampleData, sourceConfig) {
+    try {
+      const mappings = [];
+
+      // Analizza i dati ricevuti e crea mapping automatico
+      const analyzeData = (data, prefix = '') => {
+        for (const key in data) {
+          if (data.hasOwnProperty(key)) {
+            const value = data[key];
+            const fieldPath = prefix ? `${prefix}.${key}` : key;
+
+            if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+              // Ricorsione per oggetti nested
+              analyzeData(value, fieldPath);
+            } else {
+              // Crea mapping per questo campo
+              const targetField = fieldPath
+                .replace(/[^a-zA-Z0-9]/g, '_')
+                .toLowerCase()
+                .replace(/^_+|_+$/g, '');
+
+              mappings.push({
+                sourceField: fieldPath,
+                targetField: targetField,
+                transform: this.detectDataType(value)
+              });
+            }
+          }
+        }
+      };
+
+      analyzeData(sampleData);
+
+      // Crea la configurazione di mapping
+      const mappingConfig = {
+        sourceId: sourceId,
+        target: {
+          type: 'ngsi-ld',
+          entityType: sourceConfig.name.replace(/[^a-zA-Z0-9]/g, '')
+        },
+        includeMetadata: true,
+        mappings: mappings,
+        autoGenerated: true,
+        generatedAt: new Date().toISOString()
+      };
+
+      // Aggiungi il mapping al MappingEngine
+      this.mappingEngine.addMapping(mappingConfig);
+
+      // Salva il mapping su file
+      this.saveMappingToFile(mappingConfig);
+
+      logger.info(`✅ Auto-mapping created for '${sourceId}' with ${mappings.length} fields`);
+      logger.info(`📄 Mapping saved to config/mapping.json`);
+
+      // Stampa il mapping creato
+      console.log('\n' + '='.repeat(80));
+      console.log('🔧 AUTO-MAPPING CREATO:');
+      console.log('='.repeat(80));
+      console.log(JSON.stringify(mappingConfig, null, 2));
+      console.log('='.repeat(80) + '\n');
+
+    } catch (error) {
+      logger.error(`Error creating auto-mapping for '${sourceId}':`, error);
+    }
+  }
+
+  detectDataType(value) {
+    if (typeof value === 'boolean') return 'boolean';
+    if (typeof value === 'number') {
+      return Number.isInteger(value) ? 'number' : 'number';
+    }
+    if (typeof value === 'string') return 'string';
+    if (value instanceof Date) return 'string';
+    return 'string';
+  }
+
+  async saveMappingToFile(mappingConfig) {
+    try {
+      const fs = require('fs').promises;
+      const path = require('path');
+      const configPath = path.join(__dirname, '../../config/mapping.json');
+
+      let existingMappings = [];
+
+      // Leggi i mapping esistenti
+      try {
+        const content = await fs.readFile(configPath, 'utf8');
+        existingMappings = JSON.parse(content);
+      } catch (error) {
+        // File non esiste, usa array vuoto
+        logger.info('Creating new mapping.json file');
+      }
+
+      // Rimuovi eventuali mapping esistenti per lo stesso sourceId
+      existingMappings = existingMappings.filter(m => m.sourceId !== mappingConfig.sourceId);
+
+      // Aggiungi il nuovo mapping
+      existingMappings.push(mappingConfig);
+
+      // Salva su file
+      await fs.writeFile(configPath, JSON.stringify(existingMappings, null, 2), 'utf8');
+
+      logger.info(`✅ Mapping saved to ${configPath}`);
+
+    } catch (error) {
+      logger.error('Error saving mapping to file:', error);
+    }
+  }
+
   // API Support Methods
   getConnectorStatus() {
     const status = {};
-    
+
     for (const [connectorId, connectorInfo] of this.connectors.entries()) {
       status[connectorId] = {
         status: connectorInfo.status,
@@ -430,7 +606,7 @@ class DataConnectorEngine extends EventEmitter {
         }
       };
     }
-    
+
     return status;
   }
 
@@ -448,6 +624,54 @@ class DataConnectorEngine extends EventEmitter {
     };
   }
 
+
+  /**
+ * Get latest data from all sources or specific source
+ * @param {string} sourceId - Optional source ID filter
+ * @param {number} limit - Maximum number of records
+ * @returns {Array} Array of data records
+ */
+  getLatestData(sourceId = null, limit = 100) {
+    try {
+      if (!this.dataStore) {
+        logger.warn('DataStore not available');
+        return [];
+      }
+
+      // Get all data from store
+      const allData = this.dataStore.getAll ? this.dataStore.getAll() : [];
+
+      // Filter by source if specified
+      let filteredData = sourceId
+        ? allData.filter(d => d.sourceId === sourceId)
+        : allData;
+
+      // Sort by timestamp descending
+      filteredData.sort((a, b) => {
+        const timeA = new Date(a.timestamp || 0).getTime();
+        const timeB = new Date(b.timestamp || 0).getTime();
+        return timeB - timeA;
+      });
+
+      // Apply limit
+      return filteredData.slice(0, limit);
+
+    } catch (error) {
+      logger.error('Error getting latest data:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get data by source ID
+   * @param {string} sourceId - Source ID
+   * @param {number} limit - Maximum number of records
+   * @returns {Array} Array of data records
+   */
+  getDataBySource(sourceId, limit = 100) {
+    return this.getLatestData(sourceId, limit);
+  }
+
   // Configuration management helpers
   getEnabledSources() {
     return configManager.getEnabledSources();
@@ -461,7 +685,7 @@ class DataConnectorEngine extends EventEmitter {
     if (this.dataStore && typeof this.dataStore.getStorageInfo === 'function') {
       return this.dataStore.getStorageInfo();
     }
-    
+
     return {
       type: 'unknown',
       status: 'unknown'
@@ -476,7 +700,7 @@ class DataConnectorEngine extends EventEmitter {
 
     try {
       logger.info('Starting Data Connector Engine...');
-      
+
       this.stats.startTime = new Date();
       this.isRunning = true;
 
@@ -485,6 +709,7 @@ class DataConnectorEngine extends EventEmitter {
         try {
           await connectorInfo.connector.start();
           logger.info(`Started connector '${connectorInfo.config.id}'`);
+          logger.info('🎯 MONITORING ATTIVO - In attesa di dati dal server OPC UA...');
         } catch (error) {
           logger.error(`Failed to start connector '${connectorInfo.config.id}':`, error);
         }
@@ -510,7 +735,7 @@ class DataConnectorEngine extends EventEmitter {
 
     try {
       logger.info('Stopping Data Connector Engine...');
-      
+
       this.isRunning = false;
 
       // Stop all connectors
@@ -612,7 +837,7 @@ class DataConnectorEngine extends EventEmitter {
 
   async reloadConfiguration() {
     logger.info('Reloading configuration...');
-    
+
     try {
       // Stop all connectors
       if (this.isRunning) {
@@ -642,5 +867,7 @@ class DataConnectorEngine extends EventEmitter {
     }
   }
 }
+
+
 
 module.exports = DataConnectorEngine;

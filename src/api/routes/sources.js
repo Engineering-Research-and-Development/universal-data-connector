@@ -8,7 +8,7 @@ router.get('/', (req, res) => {
   try {
     const connector = global.connector;
     const engine = connector?.getEngine();
-    
+
     if (!engine) {
       return res.status(503).json({
         error: 'Service Unavailable',
@@ -17,16 +17,16 @@ router.get('/', (req, res) => {
     }
 
     const sources = configManager.getSources();
-    const engineStatus = engine.getStatus();
+    const connectorStatus = engine.getConnectorStatus() || {};
 
     const sourcesWithStatus = sources.map(source => {
-      const connectorStatus = engineStatus.connectors[source.id];
+      const status = connectorStatus[source.id];
       return {
         ...source,
         runtime: {
-          status: connectorStatus?.status || 'unknown',
-          lastActivity: connectorStatus?.lastActivity,
-          stats: connectorStatus?.stats
+          status: status?.status || 'unknown',
+          lastActivity: status?.lastActivity || null,
+          stats: status?.stats || { dataPoints: 0, errors: 0, connections: 0 }
         }
       };
     });
@@ -52,7 +52,7 @@ router.get('/:id', (req, res) => {
   try {
     const sourceId = req.params.id;
     const source = configManager.getSourceById(sourceId);
-    
+
     if (!source) {
       return res.status(404).json({
         error: 'Not Found',
@@ -62,7 +62,7 @@ router.get('/:id', (req, res) => {
 
     const connector = global.connector;
     const engine = connector?.getEngine();
-    
+
     let runtimeStatus = null;
     if (engine) {
       runtimeStatus = engine.getConnectorStatus(sourceId);
@@ -90,7 +90,7 @@ router.get('/:id/status', (req, res) => {
   try {
     const sourceId = req.params.id;
     const source = configManager.getSourceById(sourceId);
-    
+
     if (!source) {
       return res.status(404).json({
         error: 'Not Found',
@@ -100,7 +100,7 @@ router.get('/:id/status', (req, res) => {
 
     const connector = global.connector;
     const engine = connector?.getEngine();
-    
+
     if (!engine) {
       return res.status(503).json({
         error: 'Service Unavailable',
@@ -109,7 +109,7 @@ router.get('/:id/status', (req, res) => {
     }
 
     const status = engine.getConnectorStatus(sourceId);
-    
+
     if (!status) {
       return res.json({
         timestamp: new Date().toISOString(),
@@ -138,7 +138,7 @@ router.post('/:id/start', async (req, res) => {
   try {
     const sourceId = req.params.id;
     const source = configManager.getSourceById(sourceId);
-    
+
     if (!source) {
       return res.status(404).json({
         error: 'Not Found',
@@ -148,7 +148,7 @@ router.post('/:id/start', async (req, res) => {
 
     const connector = global.connector;
     const engine = connector?.getEngine();
-    
+
     if (!engine) {
       return res.status(503).json({
         error: 'Service Unavailable',
@@ -157,9 +157,9 @@ router.post('/:id/start', async (req, res) => {
     }
 
     await engine.startConnector(sourceId);
-    
+
     logger.info(`Source '${sourceId}' started via API`);
-    
+
     res.json({
       timestamp: new Date().toISOString(),
       sourceId,
@@ -182,7 +182,7 @@ router.post('/:id/stop', async (req, res) => {
   try {
     const sourceId = req.params.id;
     const source = configManager.getSourceById(sourceId);
-    
+
     if (!source) {
       return res.status(404).json({
         error: 'Not Found',
@@ -192,7 +192,7 @@ router.post('/:id/stop', async (req, res) => {
 
     const connector = global.connector;
     const engine = connector?.getEngine();
-    
+
     if (!engine) {
       return res.status(503).json({
         error: 'Service Unavailable',
@@ -201,9 +201,9 @@ router.post('/:id/stop', async (req, res) => {
     }
 
     await engine.stopConnector(sourceId);
-    
+
     logger.info(`Source '${sourceId}' stopped via API`);
-    
+
     res.json({
       timestamp: new Date().toISOString(),
       sourceId,
@@ -226,7 +226,7 @@ router.post('/:id/restart', async (req, res) => {
   try {
     const sourceId = req.params.id;
     const source = configManager.getSourceById(sourceId);
-    
+
     if (!source) {
       return res.status(404).json({
         error: 'Not Found',
@@ -236,7 +236,7 @@ router.post('/:id/restart', async (req, res) => {
 
     const connector = global.connector;
     const engine = connector?.getEngine();
-    
+
     if (!engine) {
       return res.status(503).json({
         error: 'Service Unavailable',
@@ -245,9 +245,9 @@ router.post('/:id/restart', async (req, res) => {
     }
 
     await engine.restartConnector(sourceId);
-    
+
     logger.info(`Source '${sourceId}' restarted via API`);
-    
+
     res.json({
       timestamp: new Date().toISOString(),
       sourceId,
@@ -270,7 +270,7 @@ router.get('/:id/data', (req, res) => {
   try {
     const sourceId = req.params.id;
     const limit = parseInt(req.query.limit) || 100;
-    
+
     const source = configManager.getSourceById(sourceId);
     if (!source) {
       return res.status(404).json({
@@ -281,7 +281,7 @@ router.get('/:id/data', (req, res) => {
 
     const connector = global.connector;
     const engine = connector?.getEngine();
-    
+
     if (!engine) {
       return res.status(503).json({
         error: 'Service Unavailable',
@@ -290,7 +290,7 @@ router.get('/:id/data', (req, res) => {
     }
 
     const data = engine.getDataBySource(sourceId, limit);
-    
+
     res.json({
       timestamp: new Date().toISOString(),
       sourceId,
@@ -313,7 +313,7 @@ router.get('/:id/discovery', async (req, res) => {
   try {
     const sourceId = req.params.id;
     const source = configManager.getSourceById(sourceId);
-    
+
     if (!source) {
       return res.status(404).json({
         error: 'Not Found',
@@ -323,7 +323,7 @@ router.get('/:id/discovery', async (req, res) => {
 
     const connector = global.connector;
     const engine = connector?.getEngine();
-    
+
     if (!engine) {
       return res.status(503).json({
         error: 'Service Unavailable',
@@ -378,9 +378,9 @@ router.post('/:id/configure', async (req, res) => {
   try {
     const sourceId = req.params.id;
     const { nodes, topics, registers } = req.body;
-    
+
     const source = configManager.getSourceById(sourceId);
-    
+
     if (!source) {
       return res.status(404).json({
         error: 'Not Found',
@@ -390,7 +390,7 @@ router.post('/:id/configure', async (req, res) => {
 
     const connector = global.connector;
     const engine = connector?.getEngine();
-    
+
     if (!engine) {
       return res.status(503).json({
         error: 'Service Unavailable',
@@ -414,9 +414,9 @@ router.post('/:id/configure', async (req, res) => {
 
     // Restart connector with new configuration
     await engine.restartConnector(sourceId);
-    
+
     logger.info(`Source '${sourceId}' configured with discovered items and restarted`);
-    
+
     res.json({
       timestamp: new Date().toISOString(),
       sourceId,

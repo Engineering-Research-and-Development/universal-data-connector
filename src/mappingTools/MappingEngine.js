@@ -18,13 +18,38 @@ const {
  * and handles the transformation process.
  */
 class MappingEngine {
-  constructor(config = {}) {
+  constructor(config) {
+  this.config = config || {};
+  this.mappings = new Map(); // 🔥 ASSICURATI CHE SIA UNA MAP
+  this.namespace = config.namespace || 'urn:ngsi-ld:default';
+
+  // Inizializza il data model
+  this.dataModel = new UniversalDataModel({
+    source: 'universal-data-connector',
+    namespace: this.namespace
+  });
+
+  // Inizializza mappers
+  this.mappers = new Map();
+  this.mappingStats = {
+    totalMappings: 0,
+    successfulMappings: 0,
+    failedMappings: 0,
+    lastMappingTime: null
+  };
+  
+  // Register default mappers
+  this.registerDefaultMappers();
+  
+  logger.info('Mapping Engine initialized');
+}
+/*   constructor(config = {}) {
     this.config = config;
     this.dataModel = new UniversalDataModel({
       source: 'universal-data-connector',
       namespace: config.namespace || 'urn:ngsi-ld:industry50'
     });
-    
+
     this.mappers = new Map();
     this.mappingStats = {
       totalMappings: 0,
@@ -35,9 +60,9 @@ class MappingEngine {
 
     // Register default mappers
     this.registerDefaultMappers();
-    
+
     logger.info('Mapping Engine initialized');
-  }
+  } */
 
   /**
    * Register default mappers for known protocols
@@ -49,7 +74,7 @@ class MappingEngine {
     this.registerMapper('aas', new AASMapper());
     this.registerMapper('asset-administration-shell', new AASMapper());
     this.registerMapper('mqtt', new MQTTMapper());
-    
+
     // Register generic mapper as fallback
     this.registerMapper('generic', new GenericMapper({ sourceType: 'generic' }));
     this.registerMapper('http', new GenericMapper({ sourceType: 'http' }));
@@ -59,7 +84,7 @@ class MappingEngine {
     this.registerMapper('melsec', new GenericMapper({ sourceType: 'melsec' }));
     this.registerMapper('cip', new GenericMapper({ sourceType: 'cip' }));
     this.registerMapper('serial', new GenericMapper({ sourceType: 'serial' }));
-    
+
     logger.debug(`Registered ${this.mappers.size} default mappers`);
   }
 
@@ -77,6 +102,122 @@ class MappingEngine {
     logger.debug(`Mapper registered for source type: ${sourceType}`);
   }
 
+  addMapping(mappingConfig) {
+    this.validateMapping(mappingConfig);
+    this.mappings.set(mappingConfig.sourceId, mappingConfig);
+    logger.info(`Added mapping for source '${mappingConfig.sourceId}' -> ${mappingConfig.target.type}`);
+  }
+
+  /**
+ * Validate mapping configuration
+ * @param {Object} mappingConfig - Mapping configuration to validate
+ */
+validateMapping(mappingConfig) {
+  if (!mappingConfig.sourceId) {
+    throw new Error('Mapping configuration requires sourceId');
+  }
+  
+  if (!mappingConfig.target || !mappingConfig.target.type) {
+    throw new Error('Mapping configuration requires target.type');
+  }
+  
+  if (!mappingConfig.mappings || !Array.isArray(mappingConfig.mappings)) {
+    throw new Error('Mapping configuration requires mappings array');
+  }
+  
+  return true;
+}
+
+/**
+ * Extract value from nested object using path
+ * @param {Object} obj - Source object
+ * @param {string} path - Dot-separated path (e.g., "registers.temperature")
+ * @returns {*} Extracted value or undefined
+ */
+extractValue(obj, path) {
+  const keys = path.split('.');
+  let value = obj;
+  
+  for (const key of keys) {
+    if (value === null || value === undefined) {
+      return undefined;
+    }
+    value = value[key];
+  }
+  
+  return value;
+}
+
+/**
+ * Set value in nested object using path
+ * @param {Object} obj - Target object
+ * @param {string} path - Dot-separated path
+ * @param {*} value - Value to set
+ */
+setValue(obj, path, value) {
+  const keys = path.split('.');
+  const lastKey = keys.pop();
+  let current = obj;
+  
+  for (const key of keys) {
+    if (!(key in current)) {
+      current[key] = {};
+    }
+    current = current[key];
+  }
+  
+  current[lastKey] = value;
+}
+
+/**
+ * Apply transformation to value
+ * @param {*} value - Source value
+ * @param {string} transformType - Type of transformation
+ * @param {Object} config - Transformation configuration
+ * @returns {*} Transformed value
+ */
+async applyTransformation(value, transformType, config = {}) {
+  if (!transformType || transformType === 'direct') {
+    return value;
+  }
+  
+  switch (transformType) {
+    case 'number':
+      return Number(value);
+    
+    case 'string':
+      return String(value);
+    
+    case 'boolean':
+      return Boolean(value);
+    
+    case 'scale':
+      return value * (config.factor || 1) + (config.offset || 0);
+    
+    case 'round':
+      return Math.round(value * Math.pow(10, config.decimals || 0)) / Math.pow(10, config.decimals || 0);
+    
+    case 'uppercase':
+      return String(value).toUpperCase();
+    
+    case 'lowercase':
+      return String(value).toLowerCase();
+    
+    default:
+      logger.warn(`Unknown transformation type: ${transformType}`);
+      return value;
+  }
+}
+
+/**
+ * Get mapping configuration for a source
+ * @param {string} sourceId - Source ID
+ * @returns {Object|null} Mapping configuration or null
+ */
+getMappingForSource(sourceId) {
+  return this.mappings.get(sourceId);
+}
+
   /**
    * Get mapper for a specific source type
    * @param {string} sourceType - Source type identifier
@@ -84,13 +225,76 @@ class MappingEngine {
    */
   getMapper(sourceType) {
     const mapper = this.mappers.get(sourceType.toLowerCase());
-    
+
     if (!mapper) {
       logger.warn(`No specific mapper found for ${sourceType}, using generic mapper`);
       return this.mappers.get('generic');
     }
 
     return mapper;
+  }
+  getMapping(sourceId) {
+  if (!this.mappings || !(this.mappings instanceof Map)) {
+    return null;
+  }
+  return this.mappings.get(sourceId);
+}
+
+  async applyMapping(sourceId, data) {
+     // 🔥 AGGIUNGI QUESTO CONTROLLO
+  if (!this.mappings || !(this.mappings instanceof Map)) {
+    logger.warn(`Mappings not initialized properly, creating new Map`);
+    this.mappings = new Map();
+  }
+    
+    const mapping = this.mappings.get(sourceId);
+
+    if (!mapping) {
+      logger.debug(`No mapping found for source '${sourceId}'`);
+      return null;
+    }
+
+    try {
+      logger.debug(`🔄 Applying mapping for source '${sourceId}'...`);
+
+      const result = {};
+
+      // Apply each field mapping
+      for (const fieldMapping of mapping.mappings) {
+        const sourceValue = this.extractValue(data, fieldMapping.sourceField);
+
+        if (sourceValue !== undefined) {
+          const transformedValue = await this.applyTransformation(
+            sourceValue,
+            fieldMapping.transform,
+            fieldMapping.transformConfig
+          );
+
+          this.setValue(result, fieldMapping.targetField, transformedValue);
+
+          logger.debug(`   ✓ ${fieldMapping.sourceField} (${sourceValue}) → ${fieldMapping.targetField} (${transformedValue})`);
+        } else {
+          logger.debug(`   ⚠ ${fieldMapping.sourceField} not found in source data`);
+        }
+      }
+
+      // Add metadata if configured
+      if (mapping.includeMetadata !== false) {
+        result._metadata = {
+          sourceId: sourceId,
+          timestamp: new Date().toISOString(),
+          originalData: data
+        };
+      }
+
+      logger.debug(`✅ Mapping completed for source '${sourceId}'`);
+
+      return result;
+
+    } catch (error) {
+      logger.error(`Error applying mapping for source '${sourceId}':`, error);
+      throw error;
+    }
   }
 
   /**
@@ -102,20 +306,20 @@ class MappingEngine {
   mapData(sourceData, context = {}) {
     const startTime = Date.now();
     const sourceType = context.sourceType || sourceData.type || 'generic';
-    
+
     try {
       this.mappingStats.totalMappings++;
 
       // Get appropriate mapper
       const mapper = this.getMapper(sourceType);
-      
+
       if (!mapper) {
         throw new Error(`No mapper available for source type: ${sourceType}`);
       }
 
       // Apply mapping
       const entities = mapper.map(sourceData, context);
-      
+
       if (!entities || entities.length === 0) {
         logger.warn(`Mapper returned no entities for source type: ${sourceType}`);
         return [];
@@ -249,7 +453,7 @@ class MappingEngine {
    */
   getStatistics() {
     const modelStats = this.dataModel.getStatistics();
-    
+
     return {
       ...this.mappingStats,
       dataModel: modelStats,
@@ -263,11 +467,11 @@ class MappingEngine {
    */
   updateConfig(config) {
     this.config = { ...this.config, ...config };
-    
+
     if (config.namespace) {
       this.dataModel.metadata.namespace = config.namespace;
     }
-    
+
     logger.info('Mapping engine configuration updated');
   }
 
@@ -279,5 +483,7 @@ class MappingEngine {
     return this.dataModel;
   }
 }
+
+
 
 module.exports = MappingEngine;

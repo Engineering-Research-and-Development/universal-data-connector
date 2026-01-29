@@ -11,18 +11,18 @@ class ModbusConnector extends BaseConnector {
     super(config);
     this.client = null;
     this.pollingTimer = null;
-    
+
     this.validateConfig();
   }
 
   validateConfig() {
     super.validateConfig();
-    
+
     const { config } = this.config;
     if (!config.connectionType || !['tcp', 'rtu'].includes(config.connectionType.toLowerCase())) {
       throw new Error('Modbus connector requires connectionType: "tcp" or "rtu"');
     }
-    
+
     if (config.connectionType.toLowerCase() === 'tcp') {
       if (!config.host) {
         throw new Error('Modbus TCP requires host');
@@ -38,35 +38,94 @@ class ModbusConnector extends BaseConnector {
         throw new Error('Modbus RTU requires baudRate');
       }
     }
-    
-    // Registers are optional - if empty, auto-discovery will be triggered
+
+    /* // Registers are optional - if empty, auto-discovery will be triggered
     if (config.registers && !Array.isArray(config.registers)) {
       throw new Error('Modbus registers must be an array');
     }
-    this.autoDiscovery = !config.registers || config.registers.length === 0;
+    this.autoDiscovery = !config.registers || config.registers.length === 0;*/
+    // Se ci sono tags configurati, convertili in registers
+    if (this.config.tags && Array.isArray(this.config.tags) && this.config.tags.length > 0) {
+      config.registers = this.convertTagsToRegisters(this.config.tags);
+      console.log(`✅ Converted ${this.config.tags.length} tags to ${config.registers.length} registers`);
+      this.autoDiscovery = false;
+    } else {
+      // Nessun tag configurato - usa auto-discovery
+      console.log('🔍 Auto-discovery abilitato - nessun tag configurato');
+      this.autoDiscovery = true;
+    }
     this.discoveredRegisters = [];
   }
 
   async initialize() {
     await super.initialize();
-    
+
     this.client = new ModbusRTU();
-    
+
     // Set timeouts
     const { config } = this.config;
     this.client.setTimeout(config.timeout || 5000);
-    
+
     logger.debug(`Initialized Modbus ${config.connectionType.toUpperCase()} connector '${this.id}'`);
   }
 
-  async connect() {
+  /*  async connect() {
+     const { config } = this.config;
+ 
+     try {
+       if (config.connectionType.toLowerCase() === 'tcp') {
+         await this.client.connectTCP(config.host, {
+           port: config.port || 502
+         });
+         logger.info(`Modbus TCP connector '${this.id}' connected to ${config.host}:${config.port}`);
+       } else if (config.connectionType.toLowerCase() === 'rtu') {
+         await this.client.connectRTUBuffered(config.serialPort, {
+           baudRate: config.baudRate,
+           dataBits: config.dataBits || 8,
+           stopBits: config.stopBits || 1,
+           parity: config.parity || 'none'
+         });
+         logger.info(`Modbus RTU connector '${this.id}' connected to ${config.serialPort}`);
+       }
+ 
+       // Set unit ID (slave ID)
+       if (config.unitId !== undefined) {
+         this.client.setID(config.unitId);
+       }
+ 
+       this.onConnected();
+ 
+       // If auto-discovery is enabled, discover registers
+       if (this.autoDiscovery) {
+         logger.info(`Auto-discovery enabled for Modbus connector '${this.id}'`);
+         await this.discoverRegisters();
+         logger.info(`Auto-discovery completed. Use /api/sources/${this.id}/discovery to see discovered registers`);
+       } else {
+         // Start normal polling
+         this.startPolling();
+       }
+ 
+     } catch (error) {
+       logger.error(`Modbus connector '${this.id}' connection failed:`, error);
+       this.onError(error);
+       throw error;
+     }
+   }
+  */
+
+  /* async connect() {
     const { config } = this.config;
-    
+
     try {
+      console.log('\n' + '🔷'.repeat(40));
+      console.log('🔌 CONNESSIONE AL SERVER MODBUS');
+      console.log('🔷'.repeat(40));
+
       if (config.connectionType.toLowerCase() === 'tcp') {
-        await this.client.connectTCP(config.host, { 
-          port: config.port || 502 
+        await this.client.connectTCP(config.host, {
+          port: config.port || 502
         });
+        console.log(`✅ Connesso a Modbus TCP ${config.host}:${config.port}`);
         logger.info(`Modbus TCP connector '${this.id}' connected to ${config.host}:${config.port}`);
       } else if (config.connectionType.toLowerCase() === 'rtu') {
         await this.client.connectRTUBuffered(config.serialPort, {
@@ -75,16 +134,29 @@ class ModbusConnector extends BaseConnector {
           stopBits: config.stopBits || 1,
           parity: config.parity || 'none'
         });
+        console.log(`✅ Connesso a Modbus RTU ${config.serialPort}`);
         logger.info(`Modbus RTU connector '${this.id}' connected to ${config.serialPort}`);
       }
-      
+
       // Set unit ID (slave ID)
       if (config.unitId !== undefined) {
         this.client.setID(config.unitId);
+        console.log(`📋 Unit ID impostato: ${config.unitId}`);
       }
-      
+
       this.onConnected();
-      
+
+      // Check if we have registers to poll
+      if (!config.registers || config.registers.length === 0) {
+        console.log('⚠️  Nessun registro configurato - verificare tags/registers');
+        logger.warn(`No registers configured for connector '${this.id}'`);
+      } else {
+        console.log(`📊 Registri configurati: ${config.registers.length}`);
+        config.registers.forEach(reg => {
+          console.log(`   - ${reg.name}: ${reg.type} @ ${reg.address}`);
+        });
+      }
+
       // If auto-discovery is enabled, discover registers
       if (this.autoDiscovery) {
         logger.info(`Auto-discovery enabled for Modbus connector '${this.id}'`);
@@ -92,10 +164,105 @@ class ModbusConnector extends BaseConnector {
         logger.info(`Auto-discovery completed. Use /api/sources/${this.id}/discovery to see discovered registers`);
       } else {
         // Start normal polling
+        console.log('🔄 Avvio polling...');
         this.startPolling();
       }
-      
+
+      console.log('🔷'.repeat(40) + '\n');
+
     } catch (error) {
+      console.error('❌ ERRORE CONNESSIONE MODBUS:', error.message);
+      logger.error(`Modbus connector '${this.id}' connection failed:`, error);
+      this.onError(error);
+      throw error;
+    }
+  }
+   */
+  getRegisterTypeFromFunctionCode(fc) {
+    switch (fc) {
+      case 1: return 'coil';
+      case 2: return 'discrete';
+      case 3: return 'holding';
+      case 4: return 'input';
+      default: return 'holding';
+    }
+  }
+
+  detectDataType(registerType) {
+    if (registerType === 'Coil' || registerType === 'DiscreteInput') {
+      return 'bool';
+    }
+    return 'uint16';
+  }
+  async connect() {
+    const { config } = this.config;
+
+    try {
+      console.log('\n' + '🔷'.repeat(40));
+      console.log('🔌 CONNESSIONE AL SERVER MODBUS');
+      console.log('🔷'.repeat(40));
+
+      if (config.connectionType.toLowerCase() === 'tcp') {
+        await this.client.connectTCP(config.host, {
+          port: config.port || 502
+        });
+        console.log(`✅ Connesso a Modbus TCP ${config.host}:${config.port}`);
+      } else if (config.connectionType.toLowerCase() === 'rtu') {
+        await this.client.connectRTUBuffered(config.serialPort, {
+          baudRate: config.baudRate,
+          dataBits: config.dataBits || 8,
+          stopBits: config.stopBits || 1,
+          parity: config.parity || 'none'
+        });
+        console.log(`✅ Connesso a Modbus RTU ${config.serialPort}`);
+      }
+
+      // Set unit ID (slave ID)
+      if (config.unitId !== undefined) {
+        this.client.setID(config.unitId);
+        console.log(`📋 Unit ID impostato: ${config.unitId}`);
+      }
+
+      this.onConnected();
+
+      // Se auto-discovery è abilitato
+      if (this.autoDiscovery) {
+        console.log('🔍 Avvio auto-discovery dei registri...');
+        await this.discoverRegisters();
+
+        // Converti i registri scoperti in formato utilizzabile per il polling
+        config.registers = this.discoveredRegisters.map(reg => ({
+          name: reg.name,
+          address: reg.address,
+          type: this.getRegisterTypeFromFunctionCode(reg.functionCode),
+          dataType: this.detectDataType(reg.type),
+          count: 1,
+          writable: reg.functionCode === 3 || reg.functionCode === 1 // Holding o Coils sono scrivibili
+        }));
+
+        console.log(`✅ Auto-discovery completato: ${config.registers.length} registri trovati`);
+        console.log('📊 Registri scoperti:');
+        config.registers.slice(0, 10).forEach(reg => {
+          console.log(`   - ${reg.name}: ${reg.type} @ ${reg.address}`);
+        });
+        if (config.registers.length > 10) {
+          console.log(`   ... e altri ${config.registers.length - 10} registri`);
+        }
+      }
+
+      // Verifica che ci siano registri da leggere
+      if (!config.registers || config.registers.length === 0) {
+        console.log('⚠️  Nessun registro trovato - impossibile avviare il polling');
+        logger.warn(`No registers found for connector '${this.id}'`);
+      } else {
+        console.log(`🔄 Avvio polling con ${config.registers.length} registri...`);
+        this.startPolling();
+      }
+
+      console.log('🔷'.repeat(40) + '\n');
+
+    } catch (error) {
+      console.error('❌ ERRORE CONNESSIONE MODBUS:', error.message);
       logger.error(`Modbus connector '${this.id}' connection failed:`, error);
       this.onError(error);
       throw error;
@@ -104,7 +271,7 @@ class ModbusConnector extends BaseConnector {
 
   async disconnect() {
     this.stopPolling();
-    
+
     if (this.client && this.client.isOpen) {
       try {
         this.client.close(() => {
@@ -114,7 +281,7 @@ class ModbusConnector extends BaseConnector {
         logger.error(`Error closing Modbus connector '${this.id}':`, error);
       }
     }
-    
+
     this.isConnected = false;
   }
 
@@ -125,52 +292,58 @@ class ModbusConnector extends BaseConnector {
   async discoverRegisters() {
     try {
       logger.info(`Starting register discovery for Modbus connector '${this.id}'`);
-      
+
       const { config } = this.config;
       const unitId = config.unitId || 1;
+
+      // Range di discovery ridotti per evitare timeout
       const discoveryRanges = config.discoveryRanges || {
-        holdingRegisters: { start: 0, count: 100 },
-        inputRegisters: { start: 0, count: 100 },
-        coils: { start: 0, count: 100 },
-        discreteInputs: { start: 0, count: 100 }
+        holdingRegisters: { start: 0, count: 20 },
+        inputRegisters: { start: 0, count: 20 },
+        coils: { start: 0, count: 20 },
+        discreteInputs: { start: 0, count: 20 }
       };
-      
+
       this.client.setID(unitId);
       const discovered = [];
-      
+
+      console.log('\n🔍 AUTO-DISCOVERY REGISTRI MODBUS');
+
       // Scan Holding Registers (FC3)
       logger.info(`Scanning Holding Registers (${discoveryRanges.holdingRegisters.start}-${discoveryRanges.holdingRegisters.start + discoveryRanges.holdingRegisters.count - 1})`);
       const holdingRegs = await this.scanRegisters('holding', discoveryRanges.holdingRegisters.start, discoveryRanges.holdingRegisters.count);
-      discovered.push(...holdingRegs);
-      
+      discovered.push(...holdingRegs.filter(r => r.value !== 0)); // Solo registri con valore != 0
+
+
       // Scan Input Registers (FC4)
       logger.info(`Scanning Input Registers (${discoveryRanges.inputRegisters.start}-${discoveryRanges.inputRegisters.start + discoveryRanges.inputRegisters.count - 1})`);
       const inputRegs = await this.scanRegisters('input', discoveryRanges.inputRegisters.start, discoveryRanges.inputRegisters.count);
-      discovered.push(...inputRegs);
-      
+      discovered.push(...inputRegs.filter(r => r.value !== 0));
+
       // Scan Coils (FC1)
       logger.info(`Scanning Coils (${discoveryRanges.coils.start}-${discoveryRanges.coils.start + discoveryRanges.coils.count - 1})`);
       const coils = await this.scanRegisters('coil', discoveryRanges.coils.start, discoveryRanges.coils.count);
       discovered.push(...coils);
-      
+
       // Scan Discrete Inputs (FC2)
       logger.info(`Scanning Discrete Inputs (${discoveryRanges.discreteInputs.start}-${discoveryRanges.discreteInputs.start + discoveryRanges.discreteInputs.count - 1})`);
       const discreteInputs = await this.scanRegisters('discrete', discoveryRanges.discreteInputs.start, discoveryRanges.discreteInputs.count);
       discovered.push(...discreteInputs);
-      
+
       this.discoveredRegisters = discovered;
-      
+
+      console.log(`✅ Trovati ${discovered.length} registri attivi\n`);
       logger.info(`Discovered ${discovered.length} responsive registers for connector '${this.id}'`);
-      
+
       // Emit discovery event
       this.emit('registersDiscovered', {
         sourceId: this.id,
         protocol: 'Modbus',
         registers: discovered
       });
-      
+
       return discovered;
-      
+
     } catch (error) {
       logger.error(`Failed to discover registers for connector '${this.id}':`, error);
       throw error;
@@ -183,13 +356,13 @@ class ModbusConnector extends BaseConnector {
   async scanRegisters(type, startAddress, count) {
     const discovered = [];
     const batchSize = 10; // Read registers in batches
-    
+
     for (let addr = startAddress; addr < startAddress + count; addr += batchSize) {
       const readCount = Math.min(batchSize, startAddress + count - addr);
-      
+
       try {
         let result;
-        
+
         switch (type) {
           case 'holding':
             result = await this.client.readHoldingRegisters(addr, readCount);
@@ -205,7 +378,7 @@ class ModbusConnector extends BaseConnector {
               }
             }
             break;
-            
+
           case 'input':
             result = await this.client.readInputRegisters(addr, readCount);
             if (result.data) {
@@ -220,7 +393,7 @@ class ModbusConnector extends BaseConnector {
               }
             }
             break;
-            
+
           case 'coil':
             result = await this.client.readCoils(addr, readCount);
             if (result.data) {
@@ -235,7 +408,7 @@ class ModbusConnector extends BaseConnector {
               }
             }
             break;
-            
+
           case 'discrete':
             result = await this.client.readDiscreteInputs(addr, readCount);
             if (result.data) {
@@ -251,29 +424,34 @@ class ModbusConnector extends BaseConnector {
             }
             break;
         }
-        
+
         // Small delay between batches to avoid overwhelming the device
         await new Promise(resolve => setTimeout(resolve, 50));
-        
+
       } catch (error) {
         // Register not available or error reading - skip this range
         logger.debug(`No response for ${type} registers ${addr}-${addr + readCount - 1}`);
       }
     }
-    
+
     return discovered;
   }
 
   startPolling() {
     const { config } = this.config;
     const interval = config.pollingInterval || 1000;
-    
+
+    console.log(`\n⏰ POLLING AVVIATO - Intervallo: ${interval}ms`);
+    console.log(`   Registri da leggere: ${config.registers ? config.registers.length : 0}\n`);
+
     this.pollingTimer = setInterval(async () => {
       if (this.isConnected && this.isRunning) {
         await this.readRegisters();
+      } else {
+        console.log(`⚠️  Polling saltato - isConnected: ${this.isConnected}, isRunning: ${this.isRunning}`);
       }
     }, interval);
-    
+
     logger.debug(`Modbus connector '${this.id}' started polling (interval: ${interval}ms)`);
   }
 
@@ -293,42 +471,58 @@ class ModbusConnector extends BaseConnector {
       type: this.type,
       registers: {}
     };
-    
+
     try {
-      for (const register of config.registers) {
+      // Limita il numero di registri da leggere per evitare timeout
+      const maxRegistersPerPoll = 20;
+      const registersToRead = config.registers.slice(0, maxRegistersPerPoll);
+
+      for (const register of registersToRead) {
         const { name, address, type, count = 1, unitId } = register;
-        
+
         // Switch unit ID if specified for this register
         if (unitId !== undefined && unitId !== this.client.getID()) {
           this.client.setID(unitId);
         }
-        
+
         let result;
-        
-        switch (type.toLowerCase()) {
-          case 'holding':
-            result = await this.client.readHoldingRegisters(address, count);
-            break;
-          case 'input':
-            result = await this.client.readInputRegisters(address, count);
-            break;
-          case 'coil':
-            result = await this.client.readCoils(address, count);
-            break;
-          case 'discrete':
-            result = await this.client.readDiscreteInputs(address, count);
-            break;
-          default:
-            logger.warn(`Unknown register type '${type}' for register '${name}'`);
-            continue;
+
+        try {
+          switch (type.toLowerCase()) {
+            case 'holding':
+              result = await this.client.readHoldingRegisters(address, count);
+              break;
+            case 'input':
+              result = await this.client.readInputRegisters(address, count);
+              break;
+            case 'coil':
+              result = await this.client.readCoils(address, count);
+              break;
+            case 'discrete':
+              result = await this.client.readDiscreteInputs(address, count);
+              break;
+            default:
+              logger.warn(`Unknown register type '${type}' for register '${name}'`);
+              continue;
+          }
+
+          // Parse the value based on data type
+          const parsedValue = this.parseValue(result.data, register);
+          data.registers[name] = parsedValue;
+
+          // Delay tra letture per evitare sovraccaricare il server
+          await new Promise(resolve => setTimeout(resolve, 50));
+
+        } catch (error) {
+          logger.debug(`Error reading register ${name}: ${error.message}`);
         }
-        
-        // Parse the value based on data type
-        data.registers[name] = this.parseValue(result.data, register);
       }
-      
-      this.onData(data);
-      
+
+      if (Object.keys(data.registers).length > 0) {
+        console.log('\n📊 DATI LETTI DA MODBUS:');
+        console.log(JSON.stringify(data.registers, null, 2));
+        this.onData(data);
+      }
     } catch (error) {
       logger.error(`Modbus connector '${this.id}' read error:`, error);
       this.onError(error);
@@ -337,7 +531,7 @@ class ModbusConnector extends BaseConnector {
 
   parseValue(buffer, register) {
     const { dataType = 'uint16', count = 1 } = register;
-    
+
     if (count === 1) {
       switch (dataType.toLowerCase()) {
         case 'uint16':
@@ -368,15 +562,15 @@ class ModbusConnector extends BaseConnector {
     if (!this.isConnected) {
       throw new Error('Modbus connector is not connected');
     }
-    
+
     try {
       // Switch unit ID if specified
       if (unitId !== undefined) {
         this.client.setID(unitId);
       }
-      
+
       let result;
-      
+
       switch (type.toLowerCase()) {
         case 'holding':
           result = await this.client.writeRegister(address, value);
@@ -387,10 +581,10 @@ class ModbusConnector extends BaseConnector {
         default:
           throw new Error(`Cannot write to register type '${type}'`);
       }
-      
+
       logger.info(`Modbus connector '${this.id}' wrote value ${value} to ${type} register ${address}`);
       return result;
-      
+
     } catch (error) {
       logger.error(`Modbus connector '${this.id}' write error:`, error);
       throw error;
