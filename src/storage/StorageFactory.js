@@ -3,9 +3,6 @@ const logger = require('../utils/logger');
 // Import all storage adapters
 const {
   MemoryStorageAdapter,
-  PostgreSQLAdapter,
-  MariaDBAdapter,
-  MongoDBAdapter,
   RedisAdapter,
   TimescaleDBAdapter
 } = require('./adapters');
@@ -13,11 +10,6 @@ const {
 class StorageFactory {
   static storageTypes = {
     'memory': MemoryStorageAdapter,
-    'postgresql': PostgreSQLAdapter,
-    'postgres': PostgreSQLAdapter, // Alias
-    'mariadb': MariaDBAdapter,
-    'mongodb': MongoDBAdapter,
-    'mongo': MongoDBAdapter, // Alias
     'redis': RedisAdapter,
     'timescaledb': TimescaleDBAdapter,
     'timescale': TimescaleDBAdapter // Alias
@@ -25,7 +17,7 @@ class StorageFactory {
 
   static create(type, config) {
     const StorageAdapterClass = this.storageTypes[type.toLowerCase()];
-    
+
     if (!StorageAdapterClass) {
       throw new Error(`Unsupported storage type: ${type}`);
     }

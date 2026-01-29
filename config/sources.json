@@ -6,9 +6,8 @@
       "name": "CARTIF_OPC_UA_Server",
       "enabled": true,
       "config": {
-        "endpoint": "opc.tcp://localhost:4840/cartif",
-        "rootNode": "ns=4;i=1",
-        "autoMapping": true,
+        "endpoint": "opc.tcp://127.0.0.1:4840",
+        "nodes": [],
         "interval": 1000,
         "security": {
           "mode": "None",

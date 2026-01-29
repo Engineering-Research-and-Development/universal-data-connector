@@ -1,61 +1,26 @@
 {
   "storage": {
-    "type": "memory",
+    "type": "redis",
     "config": {
-      "maxRecords": 10000,
-      "ttl": 3600000
+      "host": "localhost",
+      "port": 6379,
+      "password": "",
+      "db": 0,
+      "keyPrefix": "udc_buffer:",
+      "ttl": 3600
     }
   },
   "alternatives": {
-    "postgresql": {
-      "type": "postgresql",
+    "timescaledb": {
+      "type": "timescaledb",
       "config": {
         "host": "localhost",
         "port": 5432,
         "database": "universal_data_connector",
         "username": "postgres",
         "password": "password",
-        "pool": {
-          "min": 2,
-          "max": 10,
-          "acquireTimeout": 30000,
-          "createTimeoutMillis": 30000,
-          "destroyTimeoutMillis": 5000,
-          "idleTimeoutMillis": 30000,
-          "reapIntervalMillis": 1000,
-          "createRetryIntervalMillis": 200
-        },
-        "schema": "public",
-        "table": "sensor_data"
-      }
-    },
-    "mariadb": {
-      "type": "mariadb",
-      "config": {
-        "host": "localhost",
-        "port": 3306,
-        "database": "universal_data_connector",
-        "username": "root",
-        "password": "password",
-        "pool": {
-          "min": 2,
-          "max": 10,
-          "acquireTimeout": 30000
-        },
-        "table": "sensor_data"
-      }
-    },
-    "mongodb": {
-      "type": "mongodb",
-      "config": {
-        "uri": "mongodb://localhost:27017",
-        "database": "universal_data_connector",
-        "collection": "sensor_data",
-        "options": {
-          "maxPoolSize": 10,
-          "serverSelectionTimeoutMS": 5000,
-          "socketTimeoutMS": 45000
-        }
+        "hypertable": true,
+        "compression": true
       }
     },
     "redis": {
