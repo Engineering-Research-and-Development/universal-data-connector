@@ -7,11 +7,7 @@
       "enabled": true,
       "config": {
         "endpoint": "opc.tcp://127.0.0.1:4840",
-        "nodes": [
-          "ns=2;s=Temperature",
-          "ns=2;s=Pressure",
-          "ns=2;s=FlowRate"
-        ],
+        "nodes": [],
         "interval": 1000,
         "security": {
           "mode": "None",
