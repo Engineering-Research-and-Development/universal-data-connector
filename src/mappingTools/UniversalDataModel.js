@@ -3,20 +3,31 @@ const logger = require('../utils/logger');
 /**
  * UniversalDataModel - Universal Data Model for Industry 5.0
  * 
- * This class represents the unified data model that all incoming data
- * from various sources (OPC UA, Modbus, AAS, MQTT, etc.) is mapped to.
+ * Nuova struttura dati unificata:
+ * {
+ *   id: "device-unique-id",           // ID univoco del dispositivo
+ *   type: "device-type",              // Tipologia dispositivo (es. "PLC", "Sensor", "Gateway")
+ *   measurements: [                   // Array di misure
+ *     {
+ *       id: "measurement-id",         // ID della misura (es. "temperature", "pressure")
+ *       type: "data-type",            // Tipo di dato (float, int, bool, string)
+ *       value: <actual-value>         // Valore effettivo
+ *     }
+ *   ],
+ *   metadata: {                       // Metadati da bus di ingresso
+ *     timestamp: "2026-02-13T...",    // Timestamp della lettura
+ *     source: "opcua",                // Tipo di sorgente
+ *     quality: "GOOD",                // Qualità del dato (opzionale)
+ *     ... altri metadati specifici
+ *   }
+ * }
  * 
- * The model is designed to be:
- * - Protocol-agnostic
- * - Extensible
- * - Compatible with NGSI-LD and other semantic models
- * - Exportable to JSON, NGSI-LD, and TOON formats
+ * Esportabile in JSON o TOON format
  */
 class UniversalDataModel {
   constructor(options = {}) {
-    this.version = '1.0.0';
-    this.entities = new Map();
-    this.relationships = new Map();
+    this.version = '2.0.0';
+    this.devices = new Map(); // Map di dispositivi nel nuovo formato
     this.metadata = {
       created: new Date().toISOString(),
       updated: new Date().toISOString(),
@@ -26,295 +37,277 @@ class UniversalDataModel {
   }
 
   /**
-   * Add or update an entity in the data model
-   * @param {Object} entity - Entity data
-   * @returns {string} Entity ID
+   * Add or update a device in the data model
+   * @param {Object} device - Device data in new unified format
+   * @returns {string} Device ID
    */
-  addEntity(entity) {
-    if (!entity.id) {
-      throw new Error('Entity must have an id');
+  addDevice(device) {
+    if (!device.id) {
+      throw new Error('Device must have an id');
     }
     
-    if (!entity.type) {
-      throw new Error('Entity must have a type');
+    if (!device.type) {
+      throw new Error('Device must have a type');
     }
 
-    const entityData = {
-      id: entity.id,
-      type: entity.type,
-      attributes: entity.attributes || {},
+    // Validate measurements array
+    if (!Array.isArray(device.measurements)) {
+      device.measurements = [];
+    }
+
+    // Validate each measurement
+    device.measurements.forEach((measurement, idx) => {
+      if (!measurement.id) {
+        throw new Error(`Measurement at index ${idx} must have an id`);
+      }
+      if (measurement.type === undefined) {
+        measurement.type = this.inferType(measurement.value);
+      }
+    });
+
+    const deviceData = {
+      id: device.id,
+      type: device.type,
+      measurements: device.measurements,
       metadata: {
-        ...entity.metadata,
         timestamp: new Date().toISOString(),
-        source: entity.source || this.metadata.source
+        source: device.metadata?.source || this.metadata.source,
+        ...device.metadata
       }
     };
 
-    this.entities.set(entity.id, entityData);
+    this.devices.set(device.id, deviceData);
     this.metadata.updated = new Date().toISOString();
     
-    logger.debug(`Entity added/updated: ${entity.id} (type: ${entity.type})`);
-    return entity.id;
+    logger.debug(`Device added/updated: ${device.id} (type: ${device.type}) with ${device.measurements.length} measurements`);
+    return device.id;
   }
 
   /**
-   * Get an entity by ID
-   * @param {string} id - Entity ID
-   * @returns {Object|null} Entity data or null if not found
+   * Infer data type from value
+   * @param {*} value - Value to analyze
+   * @returns {string} Data type
    */
-  getEntity(id) {
-    return this.entities.get(id) || null;
+  inferType(value) {
+    if (value === null || value === undefined) return 'unknown';
+    if (typeof value === 'boolean') return 'bool';
+    if (typeof value === 'string') return 'string';
+    if (Number.isInteger(value)) return 'int';
+    if (typeof value === 'number') return 'float';
+    if (typeof value === 'object') return 'object';
+    return 'unknown';
   }
 
   /**
-   * Get all entities of a specific type
-   * @param {string} type - Entity type
-   * @returns {Array} Array of entities
+   * Get a device by ID
+   * @param {string} id - Device ID
+   * @returns {Object|null} Device data or null if not found
    */
-  getEntitiesByType(type) {
-    const entities = [];
-    for (const [id, entity] of this.entities.entries()) {
-      if (entity.type === type) {
-        entities.push(entity);
+  getDevice(id) {
+    return this.devices.get(id) || null;
+  }
+
+  /**
+   * Get all devices of a specific type
+   * @param {string} type - Device type
+   * @returns {Array} Array of devices
+   */
+  getDevicesByType(type) {
+    const devices = [];
+    for (const [id, device] of this.devices.entries()) {
+      if (device.type === type) {
+        devices.push(device);
       }
     }
-    return entities;
+    return devices;
   }
 
   /**
-   * Remove an entity
-   * @param {string} id - Entity ID
-   * @returns {boolean} True if entity was removed
+   * Get all devices
+   * @returns {Array} Array of all devices
    */
-  removeEntity(id) {
-    const removed = this.entities.delete(id);
+  getAllDevices() {
+    return Array.from(this.devices.values());
+  }
+
+  /**
+   * Remove a device
+   * @param {string} id - Device ID
+   * @returns {boolean} True if device was removed
+   */
+  removeDevice(id) {
+    const removed = this.devices.delete(id);
     if (removed) {
       this.metadata.updated = new Date().toISOString();
-      logger.debug(`Entity removed: ${id}`);
+      logger.debug(`Device removed: ${id}`);
     }
     return removed;
   }
 
   /**
-   * Add a relationship between entities
-   * @param {Object} relationship - Relationship data
-   * @returns {string} Relationship ID
+   * Update specific measurements for a device
+   * @param {string} deviceId - Device ID
+   * @param {Array} measurements - Array of measurements to update
+   * @returns {boolean} Success status
    */
-  addRelationship(relationship) {
-    if (!relationship.id) {
-      relationship.id = `rel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  updateMeasurements(deviceId, measurements) {
+    const device = this.devices.get(deviceId);
+    if (!device) {
+      logger.warn(`Device ${deviceId} not found for measurement update`);
+      return false;
     }
 
-    if (!relationship.type) {
-      throw new Error('Relationship must have a type');
-    }
-
-    if (!relationship.source || !relationship.target) {
-      throw new Error('Relationship must have source and target');
-    }
-
-    const relationshipData = {
-      id: relationship.id,
-      type: relationship.type,
-      source: relationship.source,
-      target: relationship.target,
-      properties: relationship.properties || {},
-      metadata: {
-        ...relationship.metadata,
-        timestamp: new Date().toISOString()
+    measurements.forEach(newMeasurement => {
+      const existingIdx = device.measurements.findIndex(m => m.id === newMeasurement.id);
+      if (existingIdx >= 0) {
+        // Update existing measurement
+        device.measurements[existingIdx] = {
+          ...device.measurements[existingIdx],
+          ...newMeasurement,
+          type: newMeasurement.type || this.inferType(newMeasurement.value)
+        };
+      } else {
+        // Add new measurement
+        device.measurements.push({
+          ...newMeasurement,
+          type: newMeasurement.type || this.inferType(newMeasurement.value)
+        });
       }
-    };
+    });
 
-    this.relationships.set(relationship.id, relationshipData);
+    device.metadata.timestamp = new Date().toISOString();
     this.metadata.updated = new Date().toISOString();
     
-    logger.debug(`Relationship added: ${relationship.id} (${relationship.source} -> ${relationship.target})`);
-    return relationship.id;
-  }
-
-  /**
-   * Get relationships for an entity
-   * @param {string} entityId - Entity ID
-   * @param {string} direction - 'source', 'target', or 'both'
-   * @returns {Array} Array of relationships
-   */
-  getRelationships(entityId, direction = 'both') {
-    const relationships = [];
-    
-    for (const [id, rel] of this.relationships.entries()) {
-      if (direction === 'both' || direction === 'source') {
-        if (rel.source === entityId) {
-          relationships.push(rel);
-        }
-      }
-      if (direction === 'both' || direction === 'target') {
-        if (rel.target === entityId) {
-          relationships.push(rel);
-        }
-      }
-    }
-    
-    return relationships;
+    return true;
   }
 
   /**
    * Export the data model to JSON format
    * @param {Object} options - Export options
-   * @returns {Object} JSON representation
+   * @returns {Object|Array} JSON representation
    */
   toJSON(options = {}) {
     const includeMetadata = options.includeMetadata !== false;
-    const includeRelationships = options.includeRelationships !== false;
+    const singleDevice = options.deviceId;
 
-    const result = {
-      version: this.version,
-      entities: Array.from(this.entities.values())
-    };
-
-    if (includeRelationships) {
-      result.relationships = Array.from(this.relationships.values());
+    if (singleDevice) {
+      const device = this.devices.get(singleDevice);
+      return device || null;
     }
+
+    const devices = Array.from(this.devices.values());
 
     if (includeMetadata) {
-      result.metadata = this.metadata;
-    }
-
-    return result;
-  }
-
-  /**
-   * Export the data model to NGSI-LD format
-   * @param {Object} options - Export options
-   * @returns {Array} Array of NGSI-LD entities
-   */
-  toNGSILD(options = {}) {
-    const context = options.context || this.metadata.namespace;
-    const entities = [];
-
-    for (const [id, entity] of this.entities.entries()) {
-      const ngsiEntity = {
-        id: this.ensureURN(entity.id),
-        type: entity.type,
-        '@context': context
+      return {
+        version: this.version,
+        metadata: this.metadata,
+        devices: devices
       };
-
-      // Convert attributes to NGSI-LD properties
-      for (const [attrName, attrValue] of Object.entries(entity.attributes)) {
-        ngsiEntity[attrName] = this.toNGSILDProperty(attrValue, entity.metadata);
-      }
-
-      entities.push(ngsiEntity);
     }
 
-    return entities;
+    return devices;
   }
 
   /**
-   * Convert attribute value to NGSI-LD property format
-   * @private
-   */
-  toNGSILDProperty(value, metadata = {}) {
-    const property = {
-      type: 'Property',
-      value: value
-    };
-
-    if (metadata.timestamp) {
-      property.observedAt = metadata.timestamp;
-    }
-
-    if (metadata.unitCode) {
-      property.unitCode = metadata.unitCode;
-    }
-
-    return property;
-  }
-
-  /**
-   * Ensure ID is in URN format
-   * @private
-   */
-  ensureURN(id) {
-    if (id.startsWith('urn:')) {
-      return id;
-    }
-    return `${this.metadata.namespace}:${id}`;
-  }
-
-  /**
-   * Export the data model to TOON format (to be defined)
+   * Export the data model to TOON format
+   * TOON (Time-Oriented Object Notation) - formato ottimizzato per time-series
    * @param {Object} options - Export options
    * @returns {Object} TOON representation
    */
   toTOON(options = {}) {
-    // TOON format to be defined based on requirements
-    logger.warn('TOON export format is not yet fully defined');
+    const devices = Array.from(this.devices.values());
     
     return {
       format: 'TOON',
       version: '1.0.0',
       timestamp: new Date().toISOString(),
-      data: this.toJSON(options)
+      source: this.metadata.source,
+      devices: devices.map(device => ({
+        id: device.id,
+        type: device.type,
+        ts: device.metadata.timestamp,
+        m: device.measurements.map(measurement => ({
+          i: measurement.id,
+          t: measurement.type,
+          v: measurement.value
+        })),
+        meta: Object.keys(device.metadata)
+          .filter(key => key !== 'timestamp')
+          .reduce((acc, key) => ({ ...acc, [key]: device.metadata[key] }), {})
+      }))
+    };
+  }
+
+  /**
+   * Export single device to simplified JSON
+   * @param {string} deviceId - Device ID
+   * @returns {Object} Device in simplified format
+   */
+  exportDevice(deviceId) {
+    const device = this.devices.get(deviceId);
+    if (!device) {
+      return null;
+    }
+
+    return {
+      id: device.id,
+      type: device.type,
+      measurements: device.measurements,
+      metadata: device.metadata
     };
   }
 
   /**
    * Import data from JSON format
-   * @param {Object} json - JSON data
+   * @param {Object|Array} json - JSON data (single device or array)
    */
   fromJSON(json) {
-    if (json.version) {
-      this.version = json.version;
-    }
-
-    if (json.metadata) {
-      this.metadata = { ...this.metadata, ...json.metadata };
-    }
-
-    if (json.entities) {
-      for (const entity of json.entities) {
-        this.addEntity(entity);
+    if (Array.isArray(json)) {
+      // Array of devices
+      json.forEach(device => this.addDevice(device));
+    } else if (json.devices) {
+      // Object with devices array
+      if (json.metadata) {
+        this.metadata = { ...this.metadata, ...json.metadata };
       }
+      json.devices.forEach(device => this.addDevice(device));
+    } else if (json.id && json.type) {
+      // Single device
+      this.addDevice(json);
     }
-
-    if (json.relationships) {
-      for (const relationship of json.relationships) {
-        this.addRelationship(relationship);
-      }
-    }
-
-    logger.info(`Imported ${json.entities?.length || 0} entities and ${json.relationships?.length || 0} relationships`);
   }
 
   /**
-   * Get statistics about the data model
+   * Clear all devices
+   */
+  clear() {
+    this.devices.clear();
+    this.metadata.updated = new Date().toISOString();
+    logger.debug('All devices cleared from data model');
+  }
+
+  /**
+   * Get statistics about stored devices
    * @returns {Object} Statistics
    */
-  getStatistics() {
-    const typeCount = {};
-    
-    for (const entity of this.entities.values()) {
-      typeCount[entity.type] = (typeCount[entity.type] || 0) + 1;
+  getStats() {
+    let totalMeasurements = 0;
+    const deviceTypes = new Map();
+
+    for (const device of this.devices.values()) {
+      totalMeasurements += device.measurements.length;
+      deviceTypes.set(device.type, (deviceTypes.get(device.type) || 0) + 1);
     }
 
     return {
-      totalEntities: this.entities.size,
-      totalRelationships: this.relationships.size,
-      entityTypes: typeCount,
+      totalDevices: this.devices.size,
+      totalMeasurements,
+      deviceTypes: Object.fromEntries(deviceTypes),
       created: this.metadata.created,
-      lastUpdated: this.metadata.updated
+      updated: this.metadata.updated
     };
-  }
-
-  /**
-   * Clear all data
-   */
-  clear() {
-    this.entities.clear();
-    this.relationships.clear();
-    this.metadata.updated = new Date().toISOString();
-    logger.info('Universal data model cleared');
   }
 }
 
 module.exports = UniversalDataModel;
+

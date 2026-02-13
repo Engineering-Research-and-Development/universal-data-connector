@@ -5,57 +5,70 @@ const ConnectorFactory = require('../connectors/ConnectorFactory');
 const DataProcessor = require('./DataProcessor');
 const DataStore = require('./DataStore');
 const NatsTransport = require('../transport/NatsTransport');
+const MqttTransport = require('../transport/MqttTransport');
+const HttpPushTransport = require('../transport/HttpPushTransport');
 const { MappingEngine } = require('../mappingTools');
+const path = require('path');
+const fs = require('fs').promises;
 
-//const MappingEngine = require('../mappingTools/MappingEngine');
-
+/**
+ * DataConnectorEngine - Main engine orchestrating data collection and distribution
+ * 
+ * Nuove funzionalità:
+ * - Discovery automatica dispositivi
+ * - Mapping con configurazione da mapping.json
+ * - Multi-transport: NATS, MQTT, HTTP Push
+ * - Output in JSON o TOON format
+ */
 class DataConnectorEngine extends EventEmitter {
   constructor(storageConfig = null, mappingConfig = null) {
     super();
     this.connectors = new Map();
     this.dataProcessor = new DataProcessor();
     this.dataStore = new DataStore(storageConfig);
+    
+    // Initialize Mapping Engine
     this.mappingEngine = new MappingEngine(mappingConfig || {
-      namespace: 'urn:ngsi-ld:industry50'
+      namespace: 'urn:ngsi-ld:industry50',
+      mappingConfigPath: path.join(process.cwd(), 'config', 'mapping.json')
     });
-    this.natsTransport = new NatsTransport();
+
+    // Initialize Transports
+    this.transports = {
+      nats: null,
+      mqtt: null,
+      http: null
+    };
+    
+    this.transportConfig = null;
+    this.outputFormat = 'json'; // 'json' or 'toon'
+    
     this.isRunning = false;
     this.stats = {
       totalDataPoints: 0,
       totalErrors: 0,
       startTime: null,
-      lastDataReceived: null
+      lastDataReceived: null,
+      transportStats: {}
     };
   }
 
   async initialize() {
     try {
-      logger.info('Initializing Data Connector Engine...');
+      logger.info('Initializing Data Connector Engine v2.0...');
 
       // Initialize data processor
       await this.dataProcessor.initialize();
 
-<<<<<<< HEAD
-      // Initialize data store
+      // Initialize data store (buffer)
       await this.dataStore.initialize();
 
-=======
-      // Initialize data store (acts as buffer now if NATS is primary)
-      await this.dataStore.initialize();
+      // Load transport configuration from mapping.json
+      await this.loadTransportConfig();
 
-      // Initialize NATS Transport
-      await this.natsTransport.initialize();
+      // Initialize transports
+      await this.initializeTransports();
 
-      this.natsTransport.on('connected', () => {
-        logger.info('NATS Transport connected. Ready to publish/flush.');
-        this.flushBuffer();
-      });
-
-      this.natsTransport.on('error', (err) => {
-        logger.warn('NATS Transport error:', err);
-      });
-
->>>>>>> 5293766d3637adb1bd0c0c10ed25a5d55e1e9389
       // Setup data processor event handlers
       this.dataProcessor.on('processed', (data) => {
         this.handleProcessedData(data);
@@ -70,10 +83,92 @@ class DataConnectorEngine extends EventEmitter {
       // Load and initialize connectors
       await this.initializeConnectors();
 
-      logger.info('Data Connector Engine initialized successfully');
+      logger.info('Data Connector Engine v2.0 initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize Data Connector Engine:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Load transport configuration from mapping.json
+   */
+  async loadTransportConfig() {
+    try {
+      const mappingPath = path.join(process.cwd(), 'config', 'mapping.json');
+      const data = await fs.readFile(mappingPath, 'utf8');
+      const config = JSON.parse(data);
+      
+      this.transportConfig = config.transport || {};
+      this.outputFormat = config.outputFormats?.json?.enabled ? 'json' : 
+                         config.outputFormats?.toon?.enabled ? 'toon' : 'json';
+      
+      logger.info('Transport configuration loaded from mapping.json');
+    } catch (error) {
+      logger.warn('Could not load transport config, using defaults');
+      this.transportConfig = {
+        nats: { enabled: false },
+        mqtt: { enabled: false },
+        http: { enabled: false }
+      };
+    }
+  }
+
+  /**
+   * Initialize transport layers
+   */
+  async initializeTransports() {
+    // Initialize NATS Transport
+    if (this.transportConfig.nats?.enabled) {
+      try {
+        this.transports.nats = new NatsTransport(this.transportConfig.nats);
+        await this.transports.nats.initialize();
+        await this.transports.nats.connect();
+        
+        this.transports.nats.on('connected', () => {
+          logger.info('NATS Transport connected');
+        });
+
+        this.transports.nats.on('error', (err) => {
+          logger.warn('NATS Transport error:', err);
+        });
+
+        logger.info('NATS transport initialized');
+      } catch (error) {
+        logger.error('Failed to initialize NATS transport:', error);
+      }
+    }
+
+    // Initialize MQTT Transport
+    if (this.transportConfig.mqtt?.enabled) {
+      try {
+        this.transports.mqtt = new MqttTransport({
+          ...this.transportConfig.mqtt,
+          format: this.transportConfig.mqtt.format || this.outputFormat
+        });
+        await this.transports.mqtt.initialize();
+        await this.transports.mqtt.connect();
+        
+        logger.info('MQTT transport initialized');
+      } catch (error) {
+        logger.error('Failed to initialize MQTT transport:', error);
+      }
+    }
+
+    // Initialize HTTP Push Transport
+    if (this.transportConfig.http?.enabled) {
+      try {
+        this.transports.http = new HttpPushTransport({
+          ...this.transportConfig.http,
+          format: this.transportConfig.http.format || this.outputFormat
+        });
+        await this.transports.http.initialize();
+        await this.transports.http.connect();
+        
+        logger.info('HTTP Push transport initialized');
+      } catch (error) {
+        logger.error('Failed to initialize HTTP transport:', error);
+      }
     }
   }
 
@@ -482,77 +577,109 @@ class DataConnectorEngine extends EventEmitter {
     return `ingestor.telemetry.${data.sourceId}`;
   }
 
+  /**
+   * Handle processed data - map and distribute to transports
+   */
   async handleProcessedData(processedData) {
     try {
-      let published = false;
-      const subject = this.determineSubject(processedData);
+      const context = {
+        sourceId: processedData.sourceId,
+        sourceType: processedData.sourceType || processedData.type,
+        endpoint: processedData.endpoint,
+        host: processedData.host,
+        port: processedData.port,
+        broker: processedData.broker,
+        topic: processedData.topic
+      };
 
-      const storagePolicy = process.env.STORAGE_POLICY || 'buffer_on_fail'; // 'always_store' or 'buffer_on_fail'
-      const shouldStoreAlways = storagePolicy === 'always_store';
+      // Map data using MappingEngine
+      const mappedDevice = await this.mappingEngine.mapData(
+        processedData.data || processedData,
+        processedData.sourceType || processedData.type || 'generic',
+        context
+      );
 
-      // 1. Storage: Always Store (if enabled)
-      if (shouldStoreAlways) {
-        try {
-          // We store it without _transportSubject because it's a permanent record, not just a buffer.
-          // However, if we want to ensure eventual consistency if NATS fails even in 'always_store' mode, 
-          // we might need a separate flag. But usually 'always_store' is for historical records.
-          await this.dataStore.store(processedData);
-        } catch (dbError) {
-          logger.error('Failed to store data in persistent storage:', dbError);
-        }
+      if (!mappedDevice) {
+        logger.warn('Mapping returned null, skipping transport');
+        return;
       }
 
-      // 2. Transport: NATS
-      if (this.natsTransport && this.natsTransport.isConnected()) {
-        try {
-          await this.natsTransport.publish(subject, processedData);
-          published = true;
-          logger.debug(`Published data to NATS: ${subject}`);
-        } catch (publishError) {
-          logger.warn('Failed to publish to NATS:', publishError.message);
-        }
-      }
+      // Update stats
+      this.stats.totalDataPoints++;
+      this.stats.lastDataReceived = new Date().toISOString();
 
-      // 3. Buffer: If failed to publish AND we haven't already stored it effectively for recovery
-      // If 'always_store' is on, we rely on the DB having it, but we might need a way to mark it as "unsent" if we want to replay it from DB.
-      // For simplicity in this "buffer_on_fail" logic (which seems to be the user's focus for recovery):
-      // We will use the DataStore (which might be Redis or Memory) specifically for buffering if NATS failed.
-      // If always_store is used (Timescale), we might NOT want to duplicate it into Redis just for buffering, 
-      // OR we might want to use Timescale itself as the buffer queue.
-      // Given the user request: "recovery procedure that pushes all SENT data... removing all other storage solutions that are not needed"
+      // Publish to all enabled transports
+      await this.publishToTransports(mappedDevice);
 
-      // Let's implement the specific request: 
-      // Option A: "Always Store" -> TimescaleDB (Historical) + NATS (Realtime)
-      // Option B: "Buffer on Fail" -> NATS (Realtime) + Backup Storage (Redis/Timescale) ONLY if NATS fails.
-
-      if (!published) {
-        // If we are in 'always_store' mode, the data is already in DB. 
-        // But looking it up to resend is expensive/complex without a "published" flag.
-        // For now, we will treat the Buffer separately:
-        // Buffer is for "Resiliency". Storage is for "History".
-        // So we BUFFER if NATS failed.
-
-        await this.dataStore.store({
-          ...processedData,
-          _transportSubject: subject,
-          _bufferedAt: new Date().toISOString(),
-          // Add a flag to distinguish from historical records if using same DB?
-          // If we use Timescale for BOTH history and buffer, it gets tricky.
-          // Assumption: DataStore instance is configured for the BUFFER/Backing store.
-          // If 'always_store' is required, maybe a separate "HistoryStore" is needed, or we just utilize the same one but mark regular items.
-
-          // User said: "specify whether to save sensor data or not... alternatively another option that saves ONLY in case of transport failure"
-          // This implies the DataStore IS the component we are configuring here.
-        });
-        logger.info(`Buffered data for ${subject} due to transport unavailability`);
-      }
-
-      // Emit processed data event (internal event)
-      this.emit('data', processedData);
+      // Emit event
+      this.emit('data', mappedDevice);
 
     } catch (error) {
       logger.error('Error handling processed data:', error);
       this.stats.totalErrors++;
+      
+      // Buffer on failure if needed
+      try {
+        await this.dataStore.store({
+          ...processedData,
+          _bufferedAt: new Date().toISOString(),
+          _error: error.message
+        });
+      } catch (storeError) {
+        logger.error('Failed to buffer data:', storeError);
+      }
+    }
+  }
+
+  /**
+   * Publish device data to all enabled transports
+   */
+  async publishToTransports(deviceData) {
+    const results = {
+      nats: false,
+      mqtt: false,
+      http: false
+    };
+
+    // Publish to NATS
+    if (this.transports.nats && this.transports.nats.isConnected()) {
+      try {
+        const subject = this.transportConfig.nats.subject || 'udc.data';
+        await this.transports.nats.publish(subject, deviceData);
+        results.nats = true;
+        logger.debug(`Published to NATS: ${deviceData.id}`);
+      } catch (error) {
+        logger.error('Failed to publish to NATS:', error);
+      }
+    }
+
+    // Publish to MQTT
+    if (this.transports.mqtt && this.transports.mqtt.isConnected()) {
+      try {
+        await this.transports.mqtt.publish(deviceData);
+        results.mqtt = true;
+        logger.debug(`Published to MQTT: ${deviceData.id}`);
+      } catch (error) {
+        logger.error('Failed to publish to MQTT:', error);
+      }
+    }
+
+    // Publish to HTTP Push
+    if (this.transports.http && this.transports.http.isConnected()) {
+      try {
+        await this.transports.http.publish(deviceData);
+        results.http = true;
+        logger.debug(`Published to HTTP: ${deviceData.id}`);
+      } catch (error) {
+        logger.error('Failed to publish to HTTP:', error);
+      }
+    }
+
+    // Update transport stats
+    this.stats.transportStats = results;
+
+    return results;
+  }
     }
   }
 

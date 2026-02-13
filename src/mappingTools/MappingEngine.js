@@ -1,5 +1,7 @@
 const logger = require('../utils/logger');
 const UniversalDataModel = require('./UniversalDataModel');
+const fs = require('fs').promises;
+const path = require('path');
 
 // Import all mappers
 const {
@@ -11,58 +13,47 @@ const {
 } = require('./mappers');
 
 /**
- * MappingEngine - Core engine for data mapping
+ * MappingEngine - Core engine for data mapping and discovery
  * 
- * This class manages the mapping of data from various sources
- * to the Universal Data Model. It maintains a registry of mappers
- * and handles the transformation process.
+ * Gestisce:
+ * - Discovery automatica dei dispositivi
+ * - Salvataggio configurazione in mapping.json
+ * - Mapping dati usando la configurazione
+ * - Output in formato JSON o TOON
  */
 class MappingEngine {
-  constructor(config) {
-  this.config = config || {};
-  this.mappings = new Map(); // 🔥 ASSICURATI CHE SIA UNA MAP
-  this.namespace = config.namespace || 'urn:ngsi-ld:default';
-
-  // Inizializza il data model
-  this.dataModel = new UniversalDataModel({
-    source: 'universal-data-connector',
-    namespace: this.namespace
-  });
-
-  // Inizializza mappers
-  this.mappers = new Map();
-  this.mappingStats = {
-    totalMappings: 0,
-    successfulMappings: 0,
-    failedMappings: 0,
-    lastMappingTime: null
-  };
-  
-  // Register default mappers
-  this.registerDefaultMappers();
-  
-  logger.info('Mapping Engine initialized');
-}
-/*   constructor(config = {}) {
+  constructor(config = {}) {
     this.config = config;
+    this.mappingConfigPath = config.mappingConfigPath || 
+                              path.join(process.cwd(), 'config', 'mapping.json');
+    
     this.dataModel = new UniversalDataModel({
       source: 'universal-data-connector',
       namespace: config.namespace || 'urn:ngsi-ld:industry50'
     });
 
     this.mappers = new Map();
+    this.mappingConfigs = new Map(); // Configurazioni di mapping per deviceId
+    this.discoveryMode = config.discoveryMode !== false; // Discovery abilitata di default
+    
     this.mappingStats = {
       totalMappings: 0,
       successfulMappings: 0,
       failedMappings: 0,
+      discoveredDevices: 0,
       lastMappingTime: null
     };
 
     // Register default mappers
     this.registerDefaultMappers();
-
-    logger.info('Mapping Engine initialized');
-  } */
+    
+    // Load existing mapping configuration
+    this.loadMappingConfig().catch(err => {
+      logger.warn('Could not load mapping configuration:', err.message);
+    });
+    
+    logger.info('Mapping Engine initialized with discovery support');
+  }
 
   /**
    * Register default mappers for known protocols
@@ -102,388 +93,200 @@ class MappingEngine {
     logger.debug(`Mapper registered for source type: ${sourceType}`);
   }
 
-  addMapping(mappingConfig) {
-    this.validateMapping(mappingConfig);
-    this.mappings.set(mappingConfig.sourceId, mappingConfig);
-    logger.info(`Added mapping for source '${mappingConfig.sourceId}' -> ${mappingConfig.target.type}`);
-  }
-
   /**
- * Validate mapping configuration
- * @param {Object} mappingConfig - Mapping configuration to validate
- */
-validateMapping(mappingConfig) {
-  if (!mappingConfig.sourceId) {
-    throw new Error('Mapping configuration requires sourceId');
-  }
-  
-  if (!mappingConfig.target || !mappingConfig.target.type) {
-    throw new Error('Mapping configuration requires target.type');
-  }
-  
-  if (!mappingConfig.mappings || !Array.isArray(mappingConfig.mappings)) {
-    throw new Error('Mapping configuration requires mappings array');
-  }
-  
-  return true;
-}
-
-/**
- * Extract value from nested object using path
- * @param {Object} obj - Source object
- * @param {string} path - Dot-separated path (e.g., "registers.temperature")
- * @returns {*} Extracted value or undefined
- */
-extractValue(obj, path) {
-  const keys = path.split('.');
-  let value = obj;
-  
-  for (const key of keys) {
-    if (value === null || value === undefined) {
-      return undefined;
-    }
-    value = value[key];
-  }
-  
-  return value;
-}
-
-/**
- * Set value in nested object using path
- * @param {Object} obj - Target object
- * @param {string} path - Dot-separated path
- * @param {*} value - Value to set
- */
-setValue(obj, path, value) {
-  const keys = path.split('.');
-  const lastKey = keys.pop();
-  let current = obj;
-  
-  for (const key of keys) {
-    if (!(key in current)) {
-      current[key] = {};
-    }
-    current = current[key];
-  }
-  
-  current[lastKey] = value;
-}
-
-/**
- * Apply transformation to value
- * @param {*} value - Source value
- * @param {string} transformType - Type of transformation
- * @param {Object} config - Transformation configuration
- * @returns {*} Transformed value
- */
-async applyTransformation(value, transformType, config = {}) {
-  if (!transformType || transformType === 'direct') {
-    return value;
-  }
-  
-  switch (transformType) {
-    case 'number':
-      return Number(value);
-    
-    case 'string':
-      return String(value);
-    
-    case 'boolean':
-      return Boolean(value);
-    
-    case 'scale':
-      return value * (config.factor || 1) + (config.offset || 0);
-    
-    case 'round':
-      return Math.round(value * Math.pow(10, config.decimals || 0)) / Math.pow(10, config.decimals || 0);
-    
-    case 'uppercase':
-      return String(value).toUpperCase();
-    
-    case 'lowercase':
-      return String(value).toLowerCase();
-    
-    default:
-      logger.warn(`Unknown transformation type: ${transformType}`);
-      return value;
-  }
-}
-
-/**
- * Get mapping configuration for a source
- * @param {string} sourceId - Source ID
- * @returns {Object|null} Mapping configuration or null
- */
-getMappingForSource(sourceId) {
-  return this.mappings.get(sourceId);
-}
-
-  /**
-   * Get mapper for a specific source type
-   * @param {string} sourceType - Source type identifier
-   * @returns {BaseMapper} Mapper instance or generic mapper
+   * Load mapping configuration from file
    */
-  getMapper(sourceType) {
-    const mapper = this.mappers.get(sourceType.toLowerCase());
-
-    if (!mapper) {
-      logger.warn(`No specific mapper found for ${sourceType}, using generic mapper`);
-      return this.mappers.get('generic');
-    }
-
-    return mapper;
-  }
-  getMapping(sourceId) {
-  if (!this.mappings || !(this.mappings instanceof Map)) {
-    return null;
-  }
-  return this.mappings.get(sourceId);
-}
-
-  async applyMapping(sourceId, data) {
-     // 🔥 AGGIUNGI QUESTO CONTROLLO
-  if (!this.mappings || !(this.mappings instanceof Map)) {
-    logger.warn(`Mappings not initialized properly, creating new Map`);
-    this.mappings = new Map();
-  }
-    
-    const mapping = this.mappings.get(sourceId);
-
-    if (!mapping) {
-      logger.debug(`No mapping found for source '${sourceId}'`);
-      return null;
-    }
-
+  async loadMappingConfig() {
     try {
-      logger.debug(`🔄 Applying mapping for source '${sourceId}'...`);
+      const data = await fs.readFile(this.mappingConfigPath, 'utf8');
+      const config = JSON.parse(data);
+      
+      if (config.devices && Array.isArray(config.devices)) {
+        for (const deviceConfig of config.devices) {
+          this.mappingConfigs.set(deviceConfig.id, deviceConfig);
+        }
+        logger.info(`Loaded ${config.devices.length} device configurations from ${this.mappingConfigPath}`);
+      }
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        logger.error('Error loading mapping configuration:', error);
+      }
+    }
+  }
 
-      const result = {};
+  /**
+   * Save mapping configuration to file
+   */
+  async saveMappingConfig() {
+    try {
+      const devices = Array.from(this.mappingConfigs.values());
+      
+      const config = {
+        version: '2.0.0',
+        updated: new Date().toISOString(),
+        discoveryMode: this.discoveryMode,
+        devices: devices
+      };
 
-      // Apply each field mapping
-      for (const fieldMapping of mapping.mappings) {
-        const sourceValue = this.extractValue(data, fieldMapping.sourceField);
+      // Ensure directory exists
+      const dir = path.dirname(this.mappingConfigPath);
+      await fs.mkdir(dir, { recursive: true });
 
-        if (sourceValue !== undefined) {
-          const transformedValue = await this.applyTransformation(
-            sourceValue,
-            fieldMapping.transform,
-            fieldMapping.transformConfig
-          );
+      await fs.writeFile(
+        this.mappingConfigPath, 
+        JSON.stringify(config, null, 2), 
+        'utf8'
+      );
+      
+      logger.info(`Saved ${devices.length} device configurations to ${this.mappingConfigPath}`);
+      return true;
+    } catch (error) {
+      logger.error('Error saving mapping configuration:', error);
+      return false;
+    }
+  }
 
-          this.setValue(result, fieldMapping.targetField, transformedValue);
+  /**
+   * Process and map source data
+   * @param {Object} sourceData - Raw data from source
+   * @param {string} sourceType - Type of source (opcua, modbus, mqtt, etc.)
+   * @param {Object} context - Additional context
+   * @returns {Object} Mapped device data
+   */
+  async mapData(sourceData, sourceType, context = {}) {
+    try {
+      const mapper = this.getMapper(sourceType);
+      
+      if (!mapper) {
+        throw new Error(`No mapper found for source type: ${sourceType}`);
+      }
 
-          logger.debug(`   ✓ ${fieldMapping.sourceField} (${sourceValue}) → ${fieldMapping.targetField} (${transformedValue})`);
-        } else {
-          logger.debug(`   ⚠ ${fieldMapping.sourceField} not found in source data`);
+      const deviceId = mapper.extractDeviceId(sourceData, context);
+      const mappingConfig = this.mappingConfigs.get(deviceId);
+
+      let mappedData;
+
+      if (mappingConfig && !this.discoveryMode) {
+        // Use existing configuration
+        mappedData = mapper.mapWithConfig(sourceData, mappingConfig, context);
+        logger.debug(`Mapped data for device ${deviceId} using configuration`);
+      } else {
+        // Discovery mode or no config: auto-map
+        mappedData = mapper.map(sourceData, context);
+        
+        // If discovery mode, save the discovered structure
+        if (this.discoveryMode && !mappingConfig) {
+          const discoveryConfig = mapper.discover(sourceData, context);
+          this.mappingConfigs.set(deviceId, discoveryConfig);
+          this.mappingStats.discoveredDevices++;
+          
+          // Auto-save after discovery
+          await this.saveMappingConfig();
+          
+          logger.info(`Discovered and saved configuration for device ${deviceId}`);
         }
       }
 
-      // Add metadata if configured
-      if (mapping.includeMetadata !== false) {
-        result._metadata = {
-          sourceId: sourceId,
-          timestamp: new Date().toISOString(),
-          originalData: data
-        };
+      // Add to data model
+      if (mappedData) {
+        this.dataModel.addDevice(mappedData);
+        this.mappingStats.successfulMappings++;
+        this.mappingStats.totalMappings++;
+        this.mappingStats.lastMappingTime = new Date().toISOString();
       }
 
-      logger.debug(`✅ Mapping completed for source '${sourceId}'`);
-
-      return result;
-
-    } catch (error) {
-      logger.error(`Error applying mapping for source '${sourceId}':`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Map data from a source to the Universal Data Model
-   * @param {Object} sourceData - Raw data from source
-   * @param {Object} context - Context information (sourceType, entityId, etc.)
-   * @returns {Array} Array of created entity IDs
-   */
-  mapData(sourceData, context = {}) {
-    const startTime = Date.now();
-    const sourceType = context.sourceType || sourceData.type || 'generic';
-
-    try {
-      this.mappingStats.totalMappings++;
-
-      // Get appropriate mapper
-      const mapper = this.getMapper(sourceType);
-
-      if (!mapper) {
-        throw new Error(`No mapper available for source type: ${sourceType}`);
-      }
-
-      // Apply mapping
-      const entities = mapper.map(sourceData, context);
-
-      if (!entities || entities.length === 0) {
-        logger.warn(`Mapper returned no entities for source type: ${sourceType}`);
-        return [];
-      }
-
-      // Add entities to data model
-      const entityIds = [];
-      for (const entity of entities) {
-        const entityId = this.dataModel.addEntity(entity);
-        entityIds.push(entityId);
-      }
-
-      this.mappingStats.successfulMappings++;
-      this.mappingStats.lastMappingTime = new Date().toISOString();
-
-      const duration = Date.now() - startTime;
-      logger.debug(`Mapped ${entities.length} entities from ${sourceType} in ${duration}ms`);
-
-      return entityIds;
+      return mappedData;
 
     } catch (error) {
       this.mappingStats.failedMappings++;
-      logger.error(`Error mapping data from ${sourceType}:`, error);
+      this.mappingStats.totalMappings++;
+      logger.error(`Mapping error for ${sourceType}:`, error);
       throw error;
     }
   }
 
   /**
-   * Map data from multiple sources in batch
-   * @param {Array} dataItems - Array of {sourceData, context} objects
-   * @returns {Object} Results with successful and failed mappings
+   * Get mapper for source type
+   * @param {string} sourceType - Source type
+   * @returns {BaseMapper} Mapper instance
    */
-  mapBatch(dataItems) {
-    const results = {
-      successful: [],
-      failed: []
-    };
+  getMapper(sourceType) {
+    return this.mappers.get(sourceType.toLowerCase()) || 
+           this.mappers.get('generic');
+  }
 
-    for (const item of dataItems) {
-      try {
-        const entityIds = this.mapData(item.sourceData, item.context);
-        results.successful.push({
-          context: item.context,
-          entityIds: entityIds
-        });
-      } catch (error) {
-        results.failed.push({
-          context: item.context,
-          error: error.message
-        });
-      }
+  /**
+   * Enable/disable discovery mode
+   * @param {boolean} enabled - Discovery mode status
+   */
+  setDiscoveryMode(enabled) {
+    this.discoveryMode = enabled;
+    logger.info(`Discovery mode ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  /**
+   * Get device configuration
+   * @param {string} deviceId - Device ID
+   * @returns {Object|null} Device configuration
+   */
+  getDeviceConfig(deviceId) {
+    return this.mappingConfigs.get(deviceId) || null;
+  }
+
+  /**
+   * Update device configuration
+   * @param {string} deviceId - Device ID
+   * @param {Object} config - Updated configuration
+   */
+  async updateDeviceConfig(deviceId, config) {
+    this.mappingConfigs.set(deviceId, config);
+    await this.saveMappingConfig();
+    logger.info(`Updated configuration for device ${deviceId}`);
+  }
+
+  /**
+   * Export data in specified format
+   * @param {string} format - 'json' or 'toon'
+   * @param {Object} options - Export options
+   * @returns {Object|Array} Exported data
+   */
+  exportData(format = 'json', options = {}) {
+    if (format === 'toon') {
+      return this.dataModel.toTOON(options);
+    } else {
+      return this.dataModel.toJSON(options);
     }
-
-    logger.info(`Batch mapping completed: ${results.successful.length} successful, ${results.failed.length} failed`);
-    return results;
   }
 
   /**
-   * Export current data model to JSON
-   * @param {Object} options - Export options
-   * @returns {Object} JSON representation
+   * Get all discovered devices
+   * @returns {Array} Array of discovered device configurations
    */
-  exportToJSON(options = {}) {
-    return this.dataModel.toJSON(options);
+  getDiscoveredDevices() {
+    return Array.from(this.mappingConfigs.values());
   }
 
   /**
-   * Export current data model to NGSI-LD
-   * @param {Object} options - Export options
-   * @returns {Array} NGSI-LD entities
+   * Clear all data
    */
-  exportToNGSILD(options = {}) {
-    return this.dataModel.toNGSILD(options);
-  }
-
-  /**
-   * Export current data model to TOON format
-   * @param {Object} options - Export options
-   * @returns {Object} TOON representation
-   */
-  exportToTOON(options = {}) {
-    return this.dataModel.toTOON(options);
-  }
-
-  /**
-   * Get a specific entity from the data model
-   * @param {string} entityId - Entity ID
-   * @returns {Object|null} Entity or null
-   */
-  getEntity(entityId) {
-    return this.dataModel.getEntity(entityId);
-  }
-
-  /**
-   * Get all entities of a specific type
-   * @param {string} type - Entity type
-   * @returns {Array} Array of entities
-   */
-  getEntitiesByType(type) {
-    return this.dataModel.getEntitiesByType(type);
-  }
-
-  /**
-   * Get all entities in the data model
-   * @returns {Array} Array of all entities
-   */
-  getAllEntities() {
-    return Array.from(this.dataModel.entities.values());
-  }
-
-  /**
-   * Remove an entity from the data model
-   * @param {string} entityId - Entity ID
-   * @returns {boolean} True if removed
-   */
-  removeEntity(entityId) {
-    return this.dataModel.removeEntity(entityId);
-  }
-
-  /**
-   * Clear all data from the data model
-   */
-  clearAll() {
+  clearData() {
     this.dataModel.clear();
-    logger.info('Mapping engine data model cleared');
+    logger.debug('Data model cleared');
   }
 
   /**
-   * Get statistics about mappings and data model
+   * Get mapping statistics
    * @returns {Object} Statistics
    */
   getStatistics() {
-    const modelStats = this.dataModel.getStatistics();
-
     return {
       ...this.mappingStats,
-      dataModel: modelStats,
-      registeredMappers: Array.from(this.mappers.keys())
+      dataModelStats: this.dataModel.getStats(),
+      mappersCount: this.mappers.size,
+      configuredDevices: this.mappingConfigs.size
     };
-  }
-
-  /**
-   * Update mapping configuration
-   * @param {Object} config - New configuration
-   */
-  updateConfig(config) {
-    this.config = { ...this.config, ...config };
-
-    if (config.namespace) {
-      this.dataModel.metadata.namespace = config.namespace;
-    }
-
-    logger.info('Mapping engine configuration updated');
-  }
-
-  /**
-   * Get the current Universal Data Model instance
-   * @returns {UniversalDataModel} Data model instance
-   */
-  getDataModel() {
-    return this.dataModel;
   }
 }
 
-
-
 module.exports = MappingEngine;
+
