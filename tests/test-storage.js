@@ -67,7 +67,7 @@ async function testStorage(storageType, config) {
   let adapter;
   try {
     // Crea adapter
-    adapter = StorageFactory.createAdapter(config.type, config.config);
+    adapter = StorageFactory.create(config.type, { type: config.type, ...config.config });
     console.log('✓ Adapter created successfully');
     
     // Test connessione

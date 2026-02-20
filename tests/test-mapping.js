@@ -46,29 +46,35 @@ class MappingTests {
     console.log('\n=== UNIVERSAL DATA MODEL TESTS ===');
 
     try {
-      // Test device creation
-      const device = UniversalDataModel.createDevice({
+      const model = new UniversalDataModel({ namespace: 'urn:ngsi-ld:test' });
+      this.recordTest('Instantiate UniversalDataModel', model !== null);
+
+      // Test adding a device
+      const deviceId = model.addDevice({
         id: 'test-device-001',
         type: 'TemperatureSensor',
-        sourceType: 'opcua'
+        measurements: [
+          { id: 'temperature', type: 'float', value: 23.5 }
+        ],
+        metadata: {
+          timestamp: new Date().toISOString(),
+          source: 'opcua'
+        }
       });
-      
-      this.recordTest('Create device', device && device.id === 'test-device-001');
 
-      // Test adding measurement
-      const measurement = UniversalDataModel.createMeasurement({
-        id: 'temperature',
-        type: 'float',
-        value: 23.5,
-        unit: '°C'
-      });
-      
-      device.measurements.push(measurement);
-      this.recordTest('Add measurement to device', device.measurements.length === 1);
+      this.recordTest('Add device to model', deviceId === 'test-device-001');
 
-      // Test data validation
-      const isValid = UniversalDataModel.validateDevice(device);
-      this.recordTest('Validate device structure', isValid);
+      // Test retrieving the device
+      const devices = model.getAllDevices();
+      this.recordTest('Retrieve devices from model', devices.length > 0);
+
+      // Test export to JSON
+      const json = model.toJSON();
+      this.recordTest('Export model to JSON', json !== null);
+
+      // Test export to TOON
+      const toon = model.toTOON();
+      this.recordTest('Export model to TOON', toon !== null);
 
     } catch (error) {
       this.recordTest('Universal Data Model tests', false, error);
@@ -85,14 +91,22 @@ class MappingTests {
     try {
       const mapper = new OPCUAMapper();
 
-      // Test mapping OPC UA data
+      // Test mapping OPC UA data (formato atteso dal mapper: sourceData.nodes)
       const opcuaData = {
-        nodeId: 'ns=2;s=Temperature',
-        value: 25.3,
-        dataType: 'Double',
-        timestamp: new Date(),
-        quality: 'GOOD',
-        sourceTimestamp: new Date()
+        deviceId: 'test-plc',
+        nodes: {
+          'ns=2;s=Temperature': {
+            value: 25.3,
+            dataType: 'Double',
+            statusCode: 'GOOD'
+          },
+          'ns=2;s=Pressure': {
+            value: 1.013,
+            dataType: 'Double',
+            statusCode: 'GOOD'
+          }
+        },
+        serverTimestamp: new Date()
       };
 
       const context = {
@@ -122,11 +136,15 @@ class MappingTests {
     try {
       const mapper = new ModbusMapper();
 
-      // Test mapping Modbus data
+      // Test mapping Modbus data (formato atteso dal mapper: sourceData.registers)
       const modbusData = {
-        address: 40001,
-        value: 1234,
-        type: 'holding',
+        deviceId: 'test-plc',
+        registers: {
+          temperature: 1234,
+          pressure: 5678,
+          status: 1
+        },
+        unitId: 1,
         timestamp: new Date()
       };
 
@@ -259,7 +277,7 @@ class MappingTests {
       // Test statistics
       const stats = engine.getStatistics();
       this.recordTest('Get mapping statistics', 
-        stats && typeof stats.totalDevices !== 'undefined');
+        stats && typeof stats.configuredDevices !== 'undefined');
 
       // Test discovered devices
       const devices = engine.getDiscoveredDevices();

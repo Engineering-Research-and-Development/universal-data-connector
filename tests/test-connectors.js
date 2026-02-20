@@ -82,6 +82,7 @@ class ConnectorTests {
     try {
       const httpConnector = ConnectorFactory.create('http', {
         id: 'test-http',
+        type: 'http',
         config: {
           url: 'https://api.github.com',
           method: 'GET',
@@ -97,6 +98,7 @@ class ConnectorTests {
     try {
       const modbusConnector = ConnectorFactory.create('modbus', {
         id: 'test-modbus',
+        type: 'modbus',
         config: {
           host: 'localhost',
           port: 502,
@@ -112,6 +114,7 @@ class ConnectorTests {
     try {
       const s7Connector = ConnectorFactory.create('s7', {
         id: 'test-s7',
+        type: 's7',
         config: {
           host: 'localhost',
           rack: 0,
@@ -146,6 +149,7 @@ class ConnectorTests {
     try {
       const httpConnector = ConnectorFactory.create('http', {
         id: 'test-http-live',
+        type: 'http',
         config: {
           url: 'https://api.github.com/repos/nodejs/node',
           method: 'GET',

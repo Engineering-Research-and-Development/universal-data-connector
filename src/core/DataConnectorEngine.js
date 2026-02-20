@@ -367,20 +367,13 @@ class DataConnectorEngine extends EventEmitter {
       }
 
       // Backup current data if needed
-<<<<<<< HEAD
-      const currentData = await this.dataStore.getAll();
+      const currentData = await this.dataStore.getLatest(10000);
       logger.info(`Backing up ${currentData.length} data points`);
-=======
-      const currentData = await this.dataStore.getAll(); // Note: getAll() doesn't exist on DataStore but internal implementation uses .data
-      // Actually checking DataStore.js, it has getLatest etc. We should use getLatest with max.
-      // But for buffering logic, we need to respect it.
->>>>>>> 5293766d3637adb1bd0c0c10ed25a5d55e1e9389
 
       // Reinitialize data store with new configuration
       this.dataStore = new DataStore(newStorageConfig);
       await this.dataStore.initialize();
 
-<<<<<<< HEAD
       // Restore data if any
       if (currentData.length > 0) {
         logger.info(`Restoring ${currentData.length} data points to new storage`);
@@ -388,10 +381,6 @@ class DataConnectorEngine extends EventEmitter {
           await this.dataStore.store(dataPoint);
         }
       }
-=======
-      // Restore data if any (assuming memory migration or buffer preservation)
-      // For now we skip complex migration of buffer during config reload unless critical
->>>>>>> 5293766d3637adb1bd0c0c10ed25a5d55e1e9389
 
       this.emit('storageConfigurationReloaded', {
         storageType: newStorageConfig?.type || 'memory'
@@ -679,8 +668,6 @@ class DataConnectorEngine extends EventEmitter {
     this.stats.transportStats = results;
 
     return results;
-  }
-    }
   }
 
   async flushBuffer() {

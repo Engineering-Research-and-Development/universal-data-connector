@@ -35,31 +35,29 @@ try {
   const StorageFactory = require('../src/storage/StorageFactory');
   
   console.log('   - Memory adapter...');
-  const memoryAdapter = StorageFactory.create('memory', { maxRecords: 100 });
+  const memoryAdapter = StorageFactory.create('memory', { type: 'memory', maxRecords: 100 });
   console.log('     ✓ Memory adapter creato');
   
-  console.log('   - MariaDB adapter...');
-  const mariadbAdapter = StorageFactory.create('mariadb', {
+  console.log('   - Redis adapter...');
+  const redisAdapter = StorageFactory.create('redis', {
+    type: 'redis',
     host: 'localhost',
-    port: 3306,
-    database: 'test',
-    user: 'root',
-    password: 'password'
+    port: 6379
   });
-  console.log('     ✓ MariaDB adapter creato');
+  console.log('     ✓ Redis adapter creato');
   
-  console.log('   - MySQL adapter...');
-  const mysqlAdapter = StorageFactory.create('mysql', {
+  console.log('   - TimescaleDB adapter...');
+  const timescaleAdapter = StorageFactory.create('timescaledb', {
+    type: 'timescaledb',
     host: 'localhost',
-    port: 3306,
+    port: 5432,
     database: 'test',
-    user: 'root',
+    username: 'postgres',
     password: 'password'
   });
-  console.log('     ✓ MySQL adapter creato');
+  console.log('     ✓ TimescaleDB adapter creato');
   
   console.log('\n✅ Tutti gli adapter sono funzionanti!');
-  console.log('\nIl problema con i require dovrebbe essere risolto.');
   
 } catch (error) {
   console.error('\n❌ Errore durante il test dei driver:');
