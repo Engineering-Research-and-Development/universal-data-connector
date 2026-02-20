@@ -1,3 +1,4 @@
 .env
+certificates
 node_modules
 logs

@@ -1,349 +1,395 @@
-<div align="center">
-  <img src="docs/logo.png" alt="Universal Data Connector Logo" width="300"/>
-  
-  # Universal Data Connector
+# Universal Data Connector v2.0 - Nuova Architettura
 
-  Un connettore dati universale configurabile per Industry 5.0 che supporta l'ingestion di dati da multiple sources.
+## Panoramica
 
-  ---
+Il progetto Universal Data Connector è stato completamente ristrutturato per fornire un sistema più semplice, flessibile e potente di raccolta e distribuzione dati da sorgenti industriali.
 
-  **[🇬🇧 English](README.md)** | **[🇮🇹 Italiano](README.it.md)**
-</div>
+## 🎯 Caratteristiche Principali
 
-## Caratteristiche
+### 1. **Formato Dati Unificato**
 
-- 🔌 **Multi-Source Support**: OPC UA, MQTT, HTTP REST, AAS + 10+ protocolli industriali
-- 🔄 **Data Mapping**: Trasformazione unificata verso Universal Data Model
-- 📤 **Multi-Format Export**: JSON, NGSI-LD, TOON
-- ⚙️ **Configurazione Flessibile**: Configurazione tramite file JSON
-- 🚀 **API REST**: Monitoraggio stato e controllo
-- 📊 **Real-time Processing**: Elaborazione dati in tempo reale
-- 🏭 **Industry 4.0/5.0 Ready**: Supporto AAS e protocolli industriali
-- 🔀 **Modular Architecture**: Architettura modulare ed estensibile
-- 📝 **Logging Avanzato**: Sistema di logging strutturato
-
-## Sources Supportate
-
-### Protocolli IT/IoT
-- **OPC UA** - Server OPC UA con subscription a nodi e gestione certificati
-- **MQTT** - Broker MQTT con subscription a topic multipli e QoS
-- **HTTP REST** - Polling endpoint REST con autenticazione (Bearer, Basic, API Key)
-
-### Protocolli Industriali PLC
-- **Modbus TCP/RTU** - Lettura/scrittura registri Holding, Input, Coil, Discrete
-- **Siemens S7** - S7-300, S7-400, S7-1200, S7-1500 via protocollo S7
-- **EtherCAT** - Protocollo real-time per automazione (richiede hardware dedicato)
-- **PROFINET** - Standard Siemens per reti industriali Ethernet
-- **FINS (Omron)** - Omron CJ, CS, CP, NJ, NX series PLC
-- **MELSEC (Mitsubishi)** - MC Protocol per Q, L, FX series
-- **CIP/EtherNet/IP** - Allen-Bradley/Rockwell ControlLogix, CompactLogix
-
-### Protocolli Building Automation
-- **BACnet/IP** - Building automation per HVAC, lighting, controllo accessi
-
-### Comunicazione Seriale
-- **Serial/RS232/RS485** - Protocolli custom su porta seriale con parser configurabili
-
-### Industry 4.0/5.0
-- **AAS (Asset Administration Shell)** - Standard Industry 4.0 per Digital Twin e interoperabilità
-
-📖 **[Documentazione Completa Connettori Industriali](docs/IndustrialConnectors.md)**
-
-## Auto-Discovery
-
-Il connettore supporta la **discovery automatica** dei data point disponibili:
-- **OPC UA** - Browse address space
-- **MQTT** - Scopri topic attivi
-- **Modbus** - Scansiona range di registri
-
-📖 **[Guida Completa Auto-Discovery](docs/AutoDiscovery.it.md)**
-
-## Mapping Tools
-
-Il **Mapping Tools** modulo trasforma automaticamente i dati da tutti i protocolli in un **Universal Data Model** unificato, esportabile in:
-- **JSON** - Formato standard universale
-- **NGSI-LD** - Standard FIWARE per IoT e Smart Cities
-- **TOON** - Formato ontologico (in definizione)
-
-### Caratteristiche Mapping
-- ✅ Mappatura automatica di tutti i protocolli
-- ✅ Modello dati unificato con entità e relazioni
-- ✅ Mappers specifici per protocollo (OPC-UA, Modbus, AAS, MQTT, Generic)
-- ✅ Export multi-formato
-- ✅ API REST per accesso dati mappati
-- ✅ Configurazione regole di mapping
-
-📖 **[Documentazione Completa Mapping Tools](docs/Mapping.md)**
-
-## Quick Start
-
-```bash
-# Installa le dipendenze
-npm install
-
-# Avvia in modalità sviluppo
-npm run dev
-
-# Avvia in produzione
-npm start
-```
-
-## Configurazione
-
-Il connettore utilizza un file `config/sources.json` per definire le sources di dati.
-
-Esempio di configurazione:
+Tutte le sorgenti dati vengono mappate in un unico formato standardizzato:
 
 ```json
 {
-  "sources": [
+  "id": "device-unique-id",
+  "type": "device-type",
+  "measurements": [
     {
-      "id": "plc-001",
-      "type": "opcua",
-      "enabled": true,
-      "config": {
-        "endpoint": "opc.tcp://192.168.1.100:4840",
-        "nodes": ["ns=2;s=Temperature", "ns=2;s=Pressure"]
-      }
+      "id": "measurement-id",
+      "type": "float|int|bool|string",
+      "value": <actual-value>
+    }
+  ],
+  "metadata": {
+    "timestamp": "2026-02-13T10:00:00.000Z",
+    "source": "opcua|modbus|mqtt|http",
+    "quality": "GOOD",
+    "...": "altri metadati specifici del protocollo"
+  }
+}
+```
+
+**Esempio pratico:**
+```json
+{
+  "id": "opcua_cartif_server",
+  "type": "OPC_UA_Server",
+  "measurements": [
+    {
+      "id": "temperature",
+      "type": "float",
+      "value": 23.5
     },
     {
-      "id": "sensor-mqtt",
-      "type": "mqtt",
-      "enabled": true,
-      "config": {
-        "broker": "mqtt://localhost:1883",
-        "topics": ["sensors/+/temperature", "sensors/+/humidity"]
-      }
+      "id": "pressure",
+      "type": "float",
+      "value": 1.013
+    },
+    {
+      "id": "motor_status",
+      "type": "bool",
+      "value": true
+    }
+  ],
+  "metadata": {
+    "timestamp": "2026-02-13T10:15:30.000Z",
+    "source": "opcua",
+    "endpoint": "opc.tcp://127.0.0.1:4840",
+    "quality": "GOOD"
+  }
+}
+```
+
+### 2. **Discovery Automatica**
+
+Il sistema può scoprire automaticamente la struttura dei dispositivi e salvarla in `config/mapping.json`:
+
+- **Prima lettura**: Il mapper analizza i dati ricevuti e genera la configurazione
+- **Salvataggio automatico**: La struttura viene salvata in `mapping.json`
+- **Personalizzazione**: L'utente può modificare il file per:
+  - Rinominare measurements
+  - Aggiungere trasformazioni (scale, offset, formula)
+  - Specificare unità di misura
+  - Disabilitare measurements non necessari
+
+**Processo:**
+1. Abilita discovery mode in `mapping.json`: `"discoveryMode": true`
+2. Avvia UDC e connettiti alle sorgenti
+3. Il sistema rileva automaticamente i dispositivi e crea le configurazioni
+4. Modifica `mapping.json` per personalizzare le regole di mapping
+5. Riavvia con `"discoveryMode": false` per usare la configurazione
+
+### 3. **Multi-Transport**
+
+Supporto per tre layer di trasporto (configurabili in `mapping.json`):
+
+#### **NATS** (Messaging veloce)
+```json
+"transport": {
+  "nats": {
+    "enabled": true,
+    "servers": "nats://localhost:4222",
+    "subject": "udc.data"
+  }
+}
+```
+
+#### **MQTT** (IoT standard)
+```json
+"transport": {
+  "mqtt": {
+    "enabled": true,
+    "broker": "mqtt://localhost:1883",
+    "baseTopic": "udc/data",
+    "format": "json",
+    "qos": 1
+  }
+}
+```
+
+#### **HTTP Push** (REST API)
+```json
+"transport": {
+  "http": {
+    "enabled": true,
+    "endpoint": "http://localhost:8080/api/data",
+    "method": "POST",
+    "format": "json",
+    "batchSize": 10
+  }
+}
+```
+
+### 4. **Formati di Output**
+
+#### **JSON** (Standard, leggibile)
+```json
+{
+  "id": "device-001",
+  "type": "Sensor",
+  "measurements": [
+    {"id": "temp", "type": "float", "value": 23.5}
+  ],
+  "metadata": {
+    "timestamp": "2026-02-13T10:00:00.000Z",
+    "source": "opcua"
+  }
+}
+```
+
+#### **TOON** (Time-Oriented Object Notation - Compatto)
+```json
+{
+  "format": "TOON",
+  "version": "1.0.0",
+  "timestamp": "2026-02-13T10:00:00.000Z",
+  "devices": [
+    {
+      "i": "device-001",
+      "t": "Sensor",
+      "ts": "2026-02-13T10:00:00.000Z",
+      "m": [
+        {"i": "temp", "t": "float", "v": 23.5}
+      ],
+      "meta": {"source": "opcua"}
     }
   ]
 }
 ```
 
-## Auto-Discovery
+## 📁 Struttura File Principali
 
-Il connettore supporta la **discovery automatica** dei data point disponibili per i protocolli che permettono l'esplorazione:
+```
+universal-data-connector/
+├── config/
+│   ├── mapping.json          # Configurazione dispositivi e transport
+│   ├── sources.json          # Configurazione sorgenti dati
+│   └── storage.json          # Configurazione storage (opzionale)
+├── src/
+│   ├── mappingTools/
+│   │   ├── MappingEngine.js      # Gestione mapping e discovery
+│   │   ├── UniversalDataModel.js # Modello dati unificato
+│   │   ├── BaseMapper.js         # Base per tutti i mapper
+│   │   └── mappers/
+│   │       ├── OPCUAMapper.js    # Mapper OPC UA
+│   │       ├── ModbusMapper.js   # Mapper Modbus
+│   │       ├── MQTTMapper.js     # Mapper MQTT
+│   │       └── GenericMapper.js  # Mapper generico
+│   ├── transport/
+│   │   ├── NatsTransport.js      # Transport NATS
+│   │   ├── MqttTransport.js      # Transport MQTT
+│   │   └── HttpPushTransport.js  # Transport HTTP Push
+│   └── core/
+│       └── DataConnectorEngine.js # Engine principale
+```
 
-### Protocolli con Discovery Abilitata
-- **OPC UA** - Browse dell'address space per scoprire i nodi
-- **MQTT** - Ascolto su topic wildcard per scoprire flussi di messaggi
-- **Modbus** - Scansione dei range di registri per trovare indirizzi che rispondono
+## 🔧 Configurazione mapping.json
 
-### Come Usare la Discovery
-1. Configura la source con array **vuoto** per nodes/topics/registers
-2. Avvia il connettore - scoprirà automaticamente i data point disponibili
-3. Usa `GET /api/sources/:id/discovery` per visualizzare gli elementi scoperti
-4. Seleziona gli elementi desiderati e configura con `POST /api/sources/:id/configure`
-5. Il connettore si riavvia con il monitoraggio attivo
+### Struttura Completa
 
-**Esempio: OPC UA Auto-Discovery**
 ```json
 {
-  "id": "plc-001",
-  "type": "opcua",
-  "config": {
-    "endpoint": "opc.tcp://192.168.1.100:4840",
-    "nodes": []  // Vuoto = modalità auto-discovery
-  }
-}
-```
-
-Dopo la connessione, chiama l'endpoint discovery:
-```bash
-GET /api/sources/plc-001/discovery
-# Restituisce tutti i nodi scoperti con i metadati
-```
-
-Configura i nodi selezionati:
-```bash
-POST /api/sources/plc-001/configure
-{
-  "nodes": ["ns=2;s=Temperature", "ns=2;s=Pressure"]
-}
-```
-
-📖 **[Documentazione Completa Discovery](docs/API.it.md#discovery-endpoints)**
-
-## API Endpoints
-
-### Status & Sources
-- `GET /api/status` - Stato generale del connettore
-- `GET /api/sources` - Lista sources configurate
-- `GET /api/sources/:id/status` - Stato di una source specifica
-- `POST /api/sources/:id/start` - Avvia una source
-- `POST /api/sources/:id/stop` - Ferma una source
-- `GET /api/data/latest` - Ultimi dati ricevuti
-
-### Discovery
-- `GET /api/sources/:id/discovery` - Ottieni elementi auto-scoperti
-- `POST /api/sources/:id/configure` - Configura e attiva gli elementi scoperti
-
-### Mapping & Export
-- `GET /api/mapping/entities` - Tutte le entità mappate
-- `GET /api/mapping/entities/:id` - Entità specifica
-- `GET /api/mapping/entities/type/:type` - Entità per tipo
-- `GET /api/mapping/export/json` - Export in JSON
-- `GET /api/mapping/export/ngsi-ld` - Export in NGSI-LD
-- `GET /api/mapping/export/toon` - Export in TOON
-- `GET /api/mapping/statistics` - Statistiche mapping
-- `GET /api/mapping/health` - Health check mapping engine
-- `DELETE /api/mapping/entities` - Cancella dati mappati
-
-## Dynamic Configuration
-
-Il Universal Data Connector supporta la **configurazione dinamica** senza riavvio del servizio:
-
-### Configurazione Sources in Real-time
-```bash
-# Aggiorna la configurazione delle sources
-curl -X POST "http://localhost:3000/api/config/sources/configure" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "sources": [
-      {
-        "id": "new-plc",
-        "type": "opcua", 
-        "enabled": true,
-        "config": {
-          "endpoint": "opc.tcp://192.168.1.100:4840",
-          "nodes": ["ns=2;s=Temperature"]
+  "version": "2.0.0",
+  "updated": "2026-02-13T10:00:00.000Z",
+  "discoveryMode": true,
+  
+  "devices": [
+    {
+      "id": "device-unique-id",
+      "type": "Device_Type",
+      "sourceType": "opcua|modbus|mqtt|http",
+      "discovered": "2026-02-13T09:00:00.000Z",
+      "enabled": true,
+      
+      "measurements": [
+        {
+          "id": "measurement-id",
+          "name": "Human Readable Name",
+          "type": "float|int|bool|string",
+          "unit": "°C|bar|rpm|%|...",
+          "description": "Descrizione della misura",
+          "sourcePath": "path.to.source.value",
+          
+          "transform": {
+            "type": "scale|offset|round|formula|map",
+            "factor": 0.1,
+            "offset": 0,
+            "decimals": 2,
+            "formula": "(x * 0.1) + 32"
+          }
         }
+      ],
+      
+      "metadata": {
+        "endpoint": "...",
+        "...": "metadati specifici protocollo"
       }
-    ]
-  }'
-```
-
-### Configurazione Storage in Real-time
-```bash
-# Cambia storage da memory a PostgreSQL
-curl -X POST "http://localhost:3000/api/config/storage/configure" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "postgresql",
-    "config": {
-      "host": "localhost",
-      "port": 5432,
-      "database": "universal_data_connector",
-      "username": "postgres",
-      "password": "password"
     }
-  }'
+  ],
+  
+  "outputFormats": {
+    "json": {
+      "enabled": true,
+      "includeMetadata": true
+    },
+    "toon": {
+      "enabled": true,
+      "compact": true
+    }
+  },
+  
+  "transport": {
+    "nats": { "enabled": true, "subject": "udc.data" },
+    "mqtt": { "enabled": false },
+    "http": { "enabled": false }
+  }
+}
 ```
 
-### API di Configurazione Dinamica
+## 🚀 Workflow Completo
 
-- `POST /api/config/sources/configure` - Configura sources con payload completo
-- `POST /api/config/sources/reload` - Ricarica configurazione sources
-- `POST /api/config/storage/configure` - Configura storage con test connessione
-- `POST /api/config/storage/reload` - Ricarica configurazione storage
-- `GET /api/config/engine/status` - Stato engine e capacità di riconfigurazione
+### 1. **Discovery Mode - Prima Configurazione**
 
-**Caratteristiche:**
-- ✅ Nessun riavvio richiesto
-- ✅ Test automatico connessioni storage
-- ✅ Migrazione dati automatica
-- ✅ Validazione configurazioni
-- ✅ Rollback in caso di errori
+```bash
+# 1. Abilita discovery in mapping.json
+"discoveryMode": true
 
-Per dettagli completi, vedi [Dynamic Configuration Guide](docs/DynamicConfiguration.md).
+# 2. Avvia UDC
+npm start
 
-## Storage Configuration
+# 3. Il sistema scopre automaticamente i dispositivi
+# e genera la configurazione in mapping.json
+```
 
-Il Universal Data Connector supporta diversi backend di storage per persistere i dati raccolti:
+### 2. **Personalizzazione**
 
-### Tipi di Storage Supportati
+Modifica `config/mapping.json` per:
+- Rinominare measurements
+- Aggiungere trasformazioni
+- Specificare unità di misura
+- Disabilitare measurements non necessari
 
-- **Memory** - Storage temporaneo in memoria (predefinito)
-- **PostgreSQL** - Database relazionale per alta performance
-- **TimescaleDB** - Database time-series ottimizzato (PostgreSQL extension)
-- **MariaDB/MySQL** - Database relazionale compatibile MySQL
-- **MongoDB** - Database NoSQL per dati semi-strutturati
-- **Redis** - Cache in memoria ad alte prestazioni
+### 3. **Produzione**
 
-### Configurazione Storage
+```bash
+# Disabilita discovery
+"discoveryMode": false
 
-Configura lo storage nel file `config/storage.json`:
+# Riavvia UDC
+npm start
 
+# Il sistema usa la configurazione personalizzata
+```
+
+## 🔄 Esempi di Trasformazioni
+
+### Scale e Offset
 ```json
 {
-  "storage": {
-    "type": "postgresql",
-    "config": {
-      "host": "localhost",
-      "port": 5432,
-      "database": "universal_data_connector",
-      "username": "postgres",
-      "password": "password",
-      "table": "sensor_data",
-      "pool": {
-        "min": 2,
-        "max": 10
-      }
+  "transform": {
+    "type": "scale",
+    "factor": 0.1,
+    "offset": -273.15
+  }
+}
+```
+Risultato: `(value * 0.1) - 273.15`
+
+### Arrotondamento
+```json
+{
+  "transform": {
+    "type": "round",
+    "decimals": 2
+  }
+}
+```
+
+### Formula Custom
+```json
+{
+  "transform": {
+    "type": "formula",
+    "formula": "(x * 1.8) + 32"
+  }
+}
+```
+Esempio: Conversione Celsius → Fahrenheit
+
+### Mapping Valori
+```json
+{
+  "transform": {
+    "type": "map",
+    "mapping": {
+      "0": "OFF",
+      "1": "ON",
+      "2": "ERROR"
     }
   }
 }
 ```
 
-### API Storage
+## 📊 Protocolli Supportati
 
-- `GET /api/config/storage` - Configurazione storage corrente
-- `PUT /api/config/storage` - Aggiorna configurazione storage
-- `POST /api/config/storage/test` - Testa connessione storage
-- `GET /api/config/storage/health` - Stato e statistiche storage
-- `GET /api/config/storage/types` - Tipi storage disponibili
+- **OPC UA** - OPCUAMapper con supporto nodeId, data types, quality
+- **Modbus** - ModbusMapper per holding, input, coil, discrete registers
+- **MQTT** - MQTTMapper con parsing JSON automatico
+- **HTTP** - GenericMapper per REST APIs
+- **Altri** - GenericMapper per qualsiasi protocollo
 
-Per dettagli completi sulla configurazione storage, vedi [Storage Configuration Guide](docs/Storage.md).
+## 🎯 Vantaggi della Nuova Architettura
 
-## Struttura Progetto
+1. **Semplicità**: Un unico formato dati unificato
+2. **Flessibilità**: Discovery automatica + personalizzazione manuale
+3. **Scalabilità**: Multi-transport per diversi use cases
+4. **Manutenibilità**: Configurazione centralizzata in mapping.json
+5. **Estensibilità**: Facile aggiungere nuovi mapper e transport
 
+## 📝 Note di Migrazione
+
+Se stai migrando dalla versione precedente:
+
+1. Il vecchio formato entities/attributes è stato sostituito da devices/measurements
+2. Le relazioni (relationships) sono state rimosse per semplicità
+3. NGSI-LD export è stato semplificato
+4. Mapping configuration è ora in mapping.json invece di essere distribuita
+
+## 🛠️ API Programmatica
+
+```javascript
+// Accesso diretto al MappingEngine
+const { MappingEngine } = require('./src/mappingTools');
+
+const engine = new MappingEngine({
+  namespace: 'urn:ngsi-ld:industry50',
+  mappingConfigPath: './config/mapping.json'
+});
+
+// Map data
+const device = await engine.mapData(sourceData, 'opcua', context);
+
+// Export in JSON
+const jsonData = engine.exportData('json');
+
+// Export in TOON
+const toonData = engine.exportData('toon');
+
+// Get discovered devices
+const devices = engine.getDiscoveredDevices();
+
+// Get statistics
+const stats = engine.getStatistics();
 ```
-src/
-├── server.js              # Entry point principale
-├── core/                  # Core engine
-│   ├── DataConnectorEngine.js    # Orchestratore principale
-│   ├── DataProcessor.js           # Elaborazione dati
-│   └── DataStore.js               # Cache in-memory
-├── connectors/            # Moduli connettori sources
-│   ├── BaseConnector.js           # Classe base connettori
-│   ├── ConnectorFactory.js        # Factory pattern
-│   └── protocols/                 # Implementazioni protocolli
-│       ├── OpcUaConnector.js      # OPC-UA
-│       ├── MqttConnector.js       # MQTT
-│       ├── HttpConnector.js       # HTTP REST
-│       ├── ModbusConnector.js     # Modbus TCP/RTU
-│       ├── S7Connector.js         # Siemens S7
-│       ├── AASConnector.js        # Asset Administration Shell
-│       ├── ... (altri 7 connettori)
-│       └── index.js               # Export unificato
-├── mappingTools/          # Sistema mapping unificato
-│   ├── UniversalDataModel.js      # Modello dati unificato
-│   ├── MappingEngine.js           # Engine orchestrazione
-│   ├── BaseMapper.js              # Classe base mapper
-│   └── mappers/                   # Mapper protocolli
-│       ├── OPCUAMapper.js
-│       ├── ModbusMapper.js
-│       ├── AASMapper.js
-│       ├── MQTTMapper.js
-│       └── GenericMapper.js
-├── storage/               # Persistenza dati
-│   ├── StorageFactory.js
-│   └── adapters/
-│       ├── PostgreSQLAdapter.js
-│       ├── TimescaleDBAdapter.js
-│       ├── MongoDBAdapter.js
-│       ├── MariaDBAdapter.js
-│       ├── RedisAdapter.js
-│       ├── MemoryStorageAdapter.js
-│       └── index.js
-├── config/                # Sistema configurazione
-│   ├── ConfigManager.js
-│   └── StorageConfigManager.js
-├── api/                   # REST API routes
-│   └── routes/
-│       ├── status.js
-│       ├── sources.js
-│       ├── data.js
-│       ├── config.js
-│       └── mapping.js     # Nuove API mapping
-└── utils/                 # Utilities
-    └── logger.js
-```
+
+## 📖 Ulteriori Risorse
+
+- [API Documentation](./docs/API.md)
+- [Configuration Guide](./docs/Configuration.md)
+- [Mapping Guide](./docs/Mapping.md)
+- [Transport Guide](./docs/Transport.md)
+
+---
+
+**Universal Data Connector v2.0** - Industry 5.0 Ready 🚀

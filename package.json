@@ -6,7 +6,14 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "jest",
+    "test": "node tests/run-tests.js",
+    "test:unit": "node tests/test-drivers.js && node tests/test-connectors.js && node tests/test-mapping.js && node tests/test-storage.js",
+    "test:udc": "node tests/test-udc.js",
+    "test:connectors": "node tests/test-connectors.js",
+    "test:mapping": "node tests/test-mapping.js",
+    "test:storage": "node tests/test-storage.js",
+    "test:dynamic-config": "node tests/test-dynamic-config.js",
+    "test:drivers": "node tests/test-drivers.js",
     "build": "npm install"
   },
   "keywords": [
