@@ -1,13 +1,13 @@
 {
   "version": "2.0.0",
-  "updated": "2026-02-20T11:23:49.449Z",
+  "updated": "2026-02-20T11:55:48.276Z",
   "discoveryMode": true,
   "devices": [
     {
       "id": "opcua_test-source",
       "type": "OPC_UA_Server",
       "sourceType": "opcua",
-      "discovered": "2026-02-20T11:23:49.449Z",
+      "discovered": "2026-02-20T11:55:48.276Z",
       "measurements": [],
       "metadata": {}
     }

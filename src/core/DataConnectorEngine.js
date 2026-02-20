@@ -1024,8 +1024,14 @@ class DataConnectorEngine extends EventEmitter {
       this.stats.startTime = new Date();
       this.isRunning = true;
 
-      // Connect NATS
-      await this.natsTransport.connect();
+      // Transports are already connected during initializeTransports()
+      // Log active transports
+      const activeTransports = Object.entries(this.transports)
+        .filter(([, t]) => t !== null)
+        .map(([name]) => name);
+      if (activeTransports.length > 0) {
+        logger.info(`Active transports: ${activeTransports.join(', ')}`);
+      }
 
       // Start all connectors
       const startPromises = Array.from(this.connectors.values()).map(async (connectorInfo) => {

@@ -100,6 +100,7 @@ class ConnectorTests {
         id: 'test-modbus',
         type: 'modbus',
         config: {
+          connectionType: 'tcp',
           host: 'localhost',
           port: 502,
           registers: []
@@ -119,7 +120,10 @@ class ConnectorTests {
           host: 'localhost',
           rack: 0,
           slot: 1,
-          variables: []
+          variables: {
+            temperature: 'DB1,REAL0',
+            pressure: 'DB1,REAL4'
+          }
         }
       });
       this.recordTest('Create S7 connector', s7Connector !== null);
@@ -158,7 +162,8 @@ class ConnectorTests {
         }
       });
 
-      // Test connect
+      // Initialize first (creates axiosInstance), then connect
+      await httpConnector.initialize();
       await httpConnector.connect();
       this.recordTest('HTTP connector connect', true);
 
