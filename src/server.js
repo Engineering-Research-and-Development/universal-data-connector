@@ -23,34 +23,6 @@ class UniversalDataConnector {
     this.storageConfig = storageConfig;
   }
 
-  /* async initialize() {
-     try {
-       // Setup Express middleware
-       this.setupMiddleware();
- 
-       // Setup routes
-       this.setupRoutes();
- 
-       // Initialize configuration
-       await configManager.initialize();
- 
-       // Initialize data connector engine
-       this.engine = new DataConnectorEngine(this.storageConfig);
-       await this.engine.initialize();
- 
-       // Initialize mapping routes with engine instance
-       mappingRoutes.initialize(this.engine);
- 
-       // Setup WebSocket server for real-time data
-       this.setupWebSocket();
- 
-       logger.info('Universal Data Connector initialized successfully');
-     } catch (error) {
-       logger.error('Failed to initialize Universal Data Connector:', error);
-       throw error;
-     }
-   }
- */
   async initialize() {
     try {
       // Setup Express middleware
@@ -271,13 +243,6 @@ class UniversalDataConnector {
     try {
       await this.initialize();
 
-      /* this.server = this.app.listen(this.port, () => {
-        logger.info(`Universal Data Connector API server listening on port ${this.port}`);
-        logger.info('Available endpoints:');
-        logger.info(`  Health Check: http://localhost:${this.port}/health`);
-        logger.info(`  API Base: http://localhost:${this.port}/api`);
-        logger.info(`  WebSocket: ws://localhost:${this.wsPort}`);
-      }); */
       this.server = this.app.listen(this.port, () => {
         console.log('\n' + '█'.repeat(80));
         console.log('  🚀 UNIVERSAL DATA CONNECTOR - AVVIATO');
@@ -288,9 +253,6 @@ class UniversalDataConnector {
         logger.info(`  API Base: http://localhost:${this.port}/api`);
         logger.info(`  WebSocket: ws://localhost:${this.wsPort}`);
         console.log('█'.repeat(80));
-        console.log('  📡 Server OPC UA: opc.tcp://FRLOPICCW1.italy.itroot.adnet:4840/cartif');
-        console.log('  🎯 In attesa di dati dal server OPC UA...');
-        console.log('█'.repeat(80) + '\n');
       });
       // Start the data connector engine
       await this.engine.start();

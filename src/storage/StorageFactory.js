@@ -1,28 +1,27 @@
 const logger = require('../utils/logger');
 
-// Import all storage adapters
-const {
-  MemoryStorageAdapter,
-  RedisAdapter,
-  TimescaleDBAdapter
-} = require('./adapters');
+// Lazy loaders — avoids loading ioredis/pg at startup when only 'memory' is used
+const storageLoaders = {
+  'memory':      () => require('./adapters/MemoryStorageAdapter'),
+  'redis':       () => require('./adapters/RedisAdapter'),
+  'timescaledb': () => require('./adapters/TimescaleDBAdapter'),
+  'timescale':   () => require('./adapters/TimescaleDBAdapter'),
+};
+const storageCache = {};
 
 class StorageFactory {
-  static storageTypes = {
-    'memory': MemoryStorageAdapter,
-    'redis': RedisAdapter,
-    'timescaledb': TimescaleDBAdapter,
-    'timescale': TimescaleDBAdapter // Alias
-  };
 
   static create(type, config) {
-    const StorageAdapterClass = this.storageTypes[type.toLowerCase()];
+    const key = type.toLowerCase();
+    const loader = storageLoaders[key];
 
-    if (!StorageAdapterClass) {
+    if (!loader) {
       throw new Error(`Unsupported storage type: ${type}`);
     }
 
     try {
+      if (!storageCache[key]) storageCache[key] = loader();
+      const StorageAdapterClass = storageCache[key];
       const adapter = new StorageAdapterClass(config);
       logger.debug(`Created ${type} storage adapter`);
       return adapter;
@@ -33,16 +32,16 @@ class StorageFactory {
   }
 
   static getSupportedTypes() {
-    return Object.keys(this.storageTypes);
+    return Object.keys(storageLoaders);
   }
 
   static registerStorageType(type, StorageAdapterClass) {
-    this.storageTypes[type.toLowerCase()] = StorageAdapterClass;
+    storageLoaders[type.toLowerCase()] = () => StorageAdapterClass;
     logger.info(`Registered custom storage adapter: ${type}`);
   }
 
   static isTypeSupported(type) {
-    return type.toLowerCase() in this.storageTypes;
+    return type.toLowerCase() in storageLoaders;
   }
 }
 

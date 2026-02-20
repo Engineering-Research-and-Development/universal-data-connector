@@ -4,9 +4,7 @@ const configManager = require('../config/ConfigManager');
 const ConnectorFactory = require('../connectors/ConnectorFactory');
 const DataProcessor = require('./DataProcessor');
 const DataStore = require('./DataStore');
-const NatsTransport = require('../transport/NatsTransport');
-const MqttTransport = require('../transport/MqttTransport');
-const HttpPushTransport = require('../transport/HttpPushTransport');
+// Transports are loaded lazily inside initializeTransports() to avoid slow startup
 const { MappingEngine } = require('../mappingTools');
 const path = require('path');
 const fs = require('fs').promises;
@@ -121,6 +119,7 @@ class DataConnectorEngine extends EventEmitter {
     // Initialize NATS Transport
     if (this.transportConfig.nats?.enabled) {
       try {
+        const NatsTransport = require('../transport/NatsTransport');
         this.transports.nats = new NatsTransport(this.transportConfig.nats);
         await this.transports.nats.initialize();
         await this.transports.nats.connect();
@@ -142,6 +141,7 @@ class DataConnectorEngine extends EventEmitter {
     // Initialize MQTT Transport
     if (this.transportConfig.mqtt?.enabled) {
       try {
+        const MqttTransport = require('../transport/MqttTransport');
         this.transports.mqtt = new MqttTransport({
           ...this.transportConfig.mqtt,
           format: this.transportConfig.mqtt.format || this.outputFormat
@@ -158,6 +158,7 @@ class DataConnectorEngine extends EventEmitter {
     // Initialize HTTP Push Transport
     if (this.transportConfig.http?.enabled) {
       try {
+        const HttpPushTransport = require('../transport/HttpPushTransport');
         this.transports.http = new HttpPushTransport({
           ...this.transportConfig.http,
           format: this.transportConfig.http.format || this.outputFormat

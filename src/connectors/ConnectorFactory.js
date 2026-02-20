@@ -1,53 +1,50 @@
 const logger = require('../utils/logger');
 
-// Import all connector implementations
-const {
-  OpcUaConnector,
-  MqttConnector,
-  HttpConnector,
-  ModbusConnector,
-  EtherCATConnector,
-  S7Connector,
-  BACnetConnector,
-  ProfinetConnector,
-  FinsTcpConnector,
-  MelsecConnector,
-  CIPConnector,
-  SerialConnector,
-  AASConnector
-} = require('./protocols');
+// Lazy-load map: connectors are required only when first used.
+// This dramatically reduces startup time since heavy libraries like
+// node-opcua, modbus-serial, nodes7, serialport, bacstack etc.
+// are NOT loaded until the connector type is actually instantiated.
+const connectorLoaders = {
+  'opcua':                    () => require('./protocols/OpcUaConnector'),
+  'mqtt':                     () => require('./protocols/MqttConnector'),
+  'http':                     () => require('./protocols/HttpConnector'),
+  'modbus':                   () => require('./protocols/ModbusConnector'),
+  'ethercat':                 () => require('./protocols/EtherCATConnector'),
+  's7':                       () => require('./protocols/S7Connector'),
+  'siemens-s7':               () => require('./protocols/S7Connector'),
+  'bacnet':                   () => require('./protocols/BACnetConnector'),
+  'profinet':                 () => require('./protocols/ProfinetConnector'),
+  'fins':                     () => require('./protocols/FinsTcpConnector'),
+  'fins-tcp':                 () => require('./protocols/FinsTcpConnector'),
+  'omron-fins':               () => require('./protocols/FinsTcpConnector'),
+  'melsec':                   () => require('./protocols/MelsecConnector'),
+  'mitsubishi':               () => require('./protocols/MelsecConnector'),
+  'cip':                      () => require('./protocols/CIPConnector'),
+  'ethernet-ip':              () => require('./protocols/CIPConnector'),
+  'rockwell':                 () => require('./protocols/CIPConnector'),
+  'serial':                   () => require('./protocols/SerialConnector'),
+  'rs232':                    () => require('./protocols/SerialConnector'),
+  'rs485':                    () => require('./protocols/SerialConnector'),
+  'aas':                      () => require('./protocols/AASConnector'),
+  'asset-administration-shell': () => require('./protocols/AASConnector'),
+};
+
+// Cache already-loaded classes to avoid repeated require() calls
+const connectorCache = {};
 
 class ConnectorFactory {
-  static connectorTypes = {
-    'opcua': OpcUaConnector,
-    'mqtt': MqttConnector,
-    'http': HttpConnector,
-    'modbus': ModbusConnector,
-    'ethercat': EtherCATConnector,
-    's7': S7Connector,
-    'siemens-s7': S7Connector,
-    'bacnet': BACnetConnector,
-    'profinet': ProfinetConnector,
-    'fins': FinsTcpConnector,
-    'omron-fins': FinsTcpConnector,
-    'melsec': MelsecConnector,
-    'mitsubishi': MelsecConnector,
-    'cip': CIPConnector,
-    'ethernet-ip': CIPConnector,
-    'rockwell': CIPConnector,
-    'serial': SerialConnector,
-    'rs232': SerialConnector,
-    'rs485': SerialConnector,
-    'aas': AASConnector,
-    'asset-administration-shell': AASConnector
-  };
-
   static create(type, config) {
-    const ConnectorClass = this.connectorTypes[type];
-    
-    if (!ConnectorClass) {
+    const loader = connectorLoaders[type];
+
+    if (!loader) {
       throw new Error(`Unsupported connector type: ${type}`);
     }
+
+    // Load and cache the class on first use
+    if (!connectorCache[type]) {
+      connectorCache[type] = loader();
+    }
+    const ConnectorClass = connectorCache[type];
 
     try {
       const connector = new ConnectorClass(config);
@@ -60,16 +57,16 @@ class ConnectorFactory {
   }
 
   static getSupportedTypes() {
-    return Object.keys(this.connectorTypes);
+    return Object.keys(connectorLoaders);
   }
 
   static registerConnectorType(type, ConnectorClass) {
-    this.connectorTypes[type] = ConnectorClass;
+    connectorLoaders[type] = () => ConnectorClass;
     logger.info(`Registered custom connector type: ${type}`);
   }
 
   static isTypeSupported(type) {
-    return type in this.connectorTypes;
+    return type in connectorLoaders;
   }
 }
 
