@@ -9,7 +9,7 @@ const storageConfigSchema = Joi.object({
     type: Joi.string().valid('memory', 'postgresql', 'postgres', 'mariadb', 'mysql', 'mongodb', 'mongo', 'redis').required(),
     config: Joi.object().required()
   }).required()
-});
+}).unknown(true);
 
 // Schema specifici per ogni tipo di storage
 const postgresConfigSchema = Joi.object({
@@ -17,7 +17,7 @@ const postgresConfigSchema = Joi.object({
   port: Joi.number().integer().min(1).max(65535).default(5432),
   database: Joi.string().required(),
   user: Joi.string().required(),
-  password: Joi.string().required(),
+  password: Joi.string().allow('').required(),
   tableName: Joi.string().default('sensor_data'),
   maxConnections: Joi.number().integer().min(1).default(10),
   idleTimeout: Joi.number().integer().min(1000).default(30000),
@@ -30,7 +30,7 @@ const mariadbConfigSchema = Joi.object({
   port: Joi.number().integer().min(1).max(65535).default(3306),
   database: Joi.string().required(),
   user: Joi.string().required(),
-  password: Joi.string().required(),
+  password: Joi.string().allow('').required(),
   tableName: Joi.string().default('sensor_data'),
   maxConnections: Joi.number().integer().min(1).default(10),
   connectionTimeout: Joi.number().integer().min(1000).default(60000),
@@ -43,8 +43,8 @@ const mongodbConfigSchema = Joi.object({
   host: Joi.string().when('url', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
   port: Joi.number().integer().min(1).max(65535).default(27017),
   database: Joi.string().required(),
-  user: Joi.string().optional(),
-  password: Joi.string().optional(),
+  user: Joi.string().allow('').optional(),
+  password: Joi.string().allow('').optional(),
   collection: Joi.string().default('sensor_data'),
   maxConnections: Joi.number().integer().min(1).default(10),
   connectionTimeout: Joi.number().integer().min(1000).default(5000),
@@ -57,7 +57,7 @@ const redisConfigSchema = Joi.object({
   host: Joi.string().when('url', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
   port: Joi.number().integer().min(1).max(65535).default(6379),
   database: Joi.number().integer().min(0).default(0),
-  password: Joi.string().optional(),
+  password: Joi.string().allow('').optional(),
   keyPrefix: Joi.string().default('udc:'),
   maxEntries: Joi.number().integer().min(100).default(10000),
   ttl: Joi.number().integer().min(60).optional(),
@@ -328,6 +328,19 @@ class StorageConfigManager {
   }
 
   async getStorageHealth() {
+    if (!this.storageConfig) {
+      return {
+        type: 'unknown',
+        status: 'unavailable',
+        health: {
+          responsive: false,
+          error: 'Storage configuration not loaded',
+          lastCheck: new Date().toISOString()
+        },
+        statistics: null,
+        lastCheck: new Date().toISOString()
+      };
+    }
     try {
       const StorageFactory = require('../storage/StorageFactory');
       const adapter = StorageFactory.createAdapter(
@@ -342,7 +355,7 @@ class StorageConfigManager {
       const responseTime = Date.now() - startTime;
       
       return {
-        type: this.storageConfig.type,
+        type: this.storageConfig?.type ?? 'unknown',
         status: 'healthy',
         health: {
           responsive: true,
@@ -355,7 +368,7 @@ class StorageConfigManager {
       
     } catch (error) {
       return {
-        type: this.storageConfig.type,
+        type: this.storageConfig?.type ?? 'unknown',
         status: 'unhealthy',
         health: {
           responsive: false,
