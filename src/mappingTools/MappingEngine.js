@@ -267,6 +267,59 @@ class MappingEngine {
   }
 
   /**
+   * Get all mapped entities (devices) from the data model
+   * @returns {Array} Array of all devices/entities
+   */
+  getAllEntities() {
+    return this.dataModel.getAllDevices();
+  }
+
+  /**
+   * Get a single entity by ID
+   * @param {string} entityId - Entity/device ID
+   * @returns {Object|null} Device data or null
+   */
+  getEntity(entityId) {
+    return this.dataModel.getDevice(entityId);
+  }
+
+  /**
+   * Get all entities of a specific type
+   * @param {string} type - Entity type
+   * @returns {Array} Array of matching devices
+   */
+  getEntitiesByType(type) {
+    return this.dataModel.getDevicesByType(type);
+  }
+
+  /**
+   * Export data in NGSI-LD JSON format
+   * @param {Object} options - Export options
+   * @returns {Object} JSON representation
+   */
+  exportToNGSILD(options = {}) {
+    return this.exportData('json', options);
+  }
+
+  /**
+   * Export data in TOON format
+   * @param {Object} options - Export options
+   * @returns {Object} TOON representation
+   */
+  exportToTOON(options = {}) {
+    return this.exportData('toon', options);
+  }
+
+  /**
+   * Clear all data and configurations
+   */
+  clearAll() {
+    this.dataModel.clear();
+    this.mappingConfigs.clear();
+    logger.debug('All data and configurations cleared');
+  }
+
+  /**
    * Clear all data
    */
   clearData() {
